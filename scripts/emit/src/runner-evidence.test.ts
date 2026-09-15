@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { COMPILER_SCOPE, compilerPathMode } from './process-paths.js';
 import { detailRowsFingerprint, type InvocationEvidence } from './result-evidence.js';
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'tsz-emit-evidence-'));
@@ -34,6 +35,7 @@ try {
     assert.equal(run.status, 1, run.stderr + run.stdout);
     const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
     assert.equal(report.detailSchemaVersion, 3);
+    assert.deepEqual(report.compilerPaths, { adapter: compilerPathMode, scope: compilerPathMode === 'host' ? null : COMPILER_SCOPE });
     assert.equal(report.results.length, 1);
     assert.equal(report.detailFingerprint, detailRowsFingerprint(report.results));
     const row = report.results[0];

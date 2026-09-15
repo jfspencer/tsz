@@ -34,6 +34,7 @@ import {
 } from './canonical-products.js';
 import { detailRowsFingerprint, invocationEvidence, type InvocationEvidence } from './result-evidence.js';
 import { resolvePinnedOracle } from './oracle.js';
+import { COMPILER_SCOPE, compilerPathMode } from './process-paths.js';
 import {
   canonicalUnsupportedReasons,
   hasEmitSidecar,
@@ -1134,6 +1135,7 @@ async function main() {
       timestamp: new Date().toISOString(),
       ...(gitSha ? { git_sha: gitSha } : {}),
       oracle: oracle.provenance,
+      compilerPaths: { adapter: compilerPathMode, scope: compilerPathMode === 'host' ? null : COMPILER_SCOPE },
       detailFingerprint: detailRowsFingerprint(allResults),
       detailResultCount: allResults.length,
       summary: {
