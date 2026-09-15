@@ -11,6 +11,7 @@ import sys
 from input_manifest import summarize_inputs
 from replay_namespace import run_candidate, runtime_files
 from replay_options import UnsupportedReplay, command_line
+from replay_manifest import summarize_replay
 from suite import ROOT, lock, verify
 
 
@@ -51,9 +52,11 @@ def replay(oracle, binary, output, timeout):
         counts[result["state"]] += 1
     if hashlib.sha256(binary.read_bytes()).hexdigest() != binary_hash:
         raise ValueError("candidate binary changed during observation")
+    capture = summarize_replay(output, inputs)
     result = {
         "schema": 1, "oracle": summary["oracle"], "input_capture": summary["input_capture"],
         "candidate_sha256": binary_hash, "counts": dict(counts), "invocations": len(records),
+        "candidate_capture": capture,
         "scope": "candidate CLI observations of original native fixtures",
         "tsz_parity": "unmeasured",
         "remaining": "native all-phase diagnostics, baseline formatting, auxiliary compilation and other drivers",

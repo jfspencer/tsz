@@ -196,12 +196,52 @@ Results retain process exit status, original stdout/stderr bytes, structured
 TSZ JSON when produced, new/changed files, and removed input paths. Timeouts
 terminate the process group and retain the observed partial products. A binary
 hash identifies the candidate, and the input manifest is checked before replay.
+`summary.json.candidate_capture` hashes every result and shared blob, verifies
+sidecar bytes, and requires exactly one candidate record for every native input.
 
 This command deliberately exits 1 and reports `tsz_parity: unmeasured`: candidate
 execution is now available, but native baseline formatting and assertion replay
 are unfinished. In particular, native compiler tests collect diagnostic phases
 that the CLI may suppress; CLI observations cannot substitute for those native
 API products. A zero candidate exit is not a passing native test.
+
+## Compare captured observations
+
+```bash
+python3 scripts/typescript7/replay_diff.py \
+  --oracle artifacts/typescript7/7.0.2-replay-inputs \
+  --candidate artifacts/typescript7/7.0.2-tsz-replay \
+  --output artifacts/typescript7/7.0.2-replay-diff
+```
+
+The oracle observation must contain completed native results, and the replay
+must contain its candidate manifest. Older replay directories must be rerun.
+Both input identities and all three manifests are verified before comparison;
+missing/extra invocations, duplicate output paths, changed records, corrupt
+blobs, and altered sidecars are errors. Fresh output directories retain every
+invocation in hashed JSONL shards, including unsupported and unavailable rows.
+
+Two explicit projections are compared:
+
+- Ordered diagnostic headers: path, position, length, code, category and text.
+  Native byte spans are converted to UTF-16 using their captured source bytes.
+  Messages, order and duplicate diagnostics are unchanged. Missing candidate
+  diagnostics are unavailable, never an implicit empty list. Chains, related
+  information, diagnostic flags and native phase selection remain outside this
+  projection.
+- Filesystem changes: exact bytes, paths and modes of new/changed files, plus
+  candidate input removals. The equivalent delta is derived from native output
+  records and original input files. Same-byte writes are not visible as write
+  events in this projection. Native output through a symlink remains explicitly
+  unavailable until write-event capture is implemented.
+
+Candidate completion is recorded separately. A matching projection can coexist
+with incomplete compiler work and **never counts as a passing native test**.
+The command exits 1 with `tsz_parity: unmeasured`, even when both projections
+match; malformed or inconsistent evidence exits 2. Full result APIs, emit
+events, traces, baseline rendering and other native test drivers still need
+ports. The comparison works with either compiler foundation and does not read
+compiler internals or feed expected outputs into the candidate.
 
 ## Release-native limitations observed locally
 
