@@ -39,6 +39,7 @@ target-*/
 # in scripts/ci/typescript-submodule-ref; each TSZ checkout materializes it
 # locally or links to a verified shared checkout.
 /TypeScript/
+/TypeScript7/
 /TypeScript-tests
 /TypeScript-tests/
 TypeScript/tests/baselines/local/*

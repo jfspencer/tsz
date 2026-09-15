@@ -27,6 +27,11 @@ export const PROVENANCE_FILENAME = ".tsz-fixture-provenance.json";
 /** Repo-root-relative directory prefix for all generator scripts. */
 export const GENERATOR_SCRIPTS_PREFIX = "scripts/bench/";
 
+/** Use the same production compiler as diagnostic and emit validation. */
+export const TYPESCRIPT_VERSION = JSON.parse(
+  fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+).devDependencies.typescript;
+
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /**
