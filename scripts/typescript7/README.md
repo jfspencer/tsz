@@ -142,6 +142,33 @@ as a substitute for its own emit. This is an input ledger, not a completed
 replay engine. Other native drivers, such as build/watch and language-service
 tests, still need their own adapters.
 
+## Native completed-result capture
+
+Each captured `CompileFilesEx` invocation also has a matching record under
+`compilations/invocations/`. The reporting overlay reads the completed native
+result before returning it to the original tests; it does not query the compiler
+again or change an assertion. Records retain:
+
+- The input invocation identity, ordered native diagnostics, recursive message
+  chains and related information, categories, flags, and exact diagnostic source
+  bytes. Spans are explicitly **native byte offsets**, not UTF-16 positions.
+- Every file in the native output recorder, including JS, declarations, maps,
+  JSON, and build information. Paths and raw bytes are preserved; file records
+  are sorted by path, and shared bytes live in `compilations/blobs/`.
+- The native emit-skipped state, emit diagnostics, reported output paths, and
+  resolution trace. A missing emit result remains distinct from an empty result.
+
+`summary.json.result_capture` verifies blob hashes, references, invocation
+identities, and ordered payloads. Missing result records are reported by input
+identity and prevent an observation from succeeding. The manifest covers all
+records and blobs; corruption cannot silently become an empty output set.
+
+This is the native API result, not the CLI's diagnostic selection or exit code.
+It provides a direct comparison boundary for candidate replay. Native baseline
+formatting, type/symbol displays, auxiliary checks, and other test drivers still
+need their own candidate adapters; captured oracle results are never candidate
+outputs.
+
 ## Candidate replay
 
 ```bash

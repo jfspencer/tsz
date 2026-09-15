@@ -17,6 +17,7 @@ import subprocess
 import sys
 
 from input_manifest import summarize_inputs
+from result_manifest import summarize_results
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
@@ -234,9 +235,14 @@ def make_overlay(checkout: Path, output: Path) -> Path:
     if source.count(boundary) != 1:
         raise ValueError("pinned compiler input capture anchor changed")
     patched_harness = output / "harnessutil.go"
-    patched_harness.write_text(source.replace(boundary,
-        "\ttszCaptureCompilation(t, testfs, programFileNames, compilerOptions, harnessOptions, currentDirectory, tsconfig)\n"
-        + boundary))
+    modified_harness = source.replace(boundary,
+        "\ttszInvocation := tszCaptureCompilation(t, testfs, programFileNames, compilerOptions, harnessOptions, currentDirectory, tsconfig)\n"
+        + boundary)
+    result_boundary = "\tresult.Trace = host.tracer.String()\n"
+    if source.count(result_boundary) != 1:
+        raise ValueError("pinned compiler result capture anchor changed")
+    patched_harness.write_text(modified_harness.replace(result_boundary,
+        result_boundary + "\ttszCaptureCompilationResult(t, tszInvocation, result)\n"))
     overlay = output / "overlay.json"
     overlay.write_text(json.dumps({"Replace": {
         str(baseline): str(patched),
@@ -244,6 +250,7 @@ def make_overlay(checkout: Path, output: Path) -> Path:
         str(harness): str(patched_harness),
         str(harness.with_name("tsz_capture_inputs.go")): str(HERE / "capture_inputs.go"),
         str(harness.with_name("tsz_capture_options.go")): str(HERE / "capture_options.go"),
+        str(harness.with_name("tsz_capture_results.go")): str(HERE / "capture_results.go"),
     }}, indent=2) + "\n")
     return overlay
 
@@ -266,7 +273,8 @@ def oracle(checkout: Path, output: Path, packages: list[str], pattern: str, work
     command += packages or ["./..."]
     inputs = output / "inputs"
     env = dict(os.environ, TSZ_ORACLE_CAPTURE_DIR=str(products), TSZ_ORACLE_INPUT_DIR=str(inputs),
-               CGO_ENABLED="0", TS_TEST_PROGRAM_SINGLE_THREADED="true")
+               CGO_ENABLED="0", TS_TEST_PROGRAM_SINGLE_THREADED="true",
+               TSZ_ORACLE_RESULT_DIR=str(output / "compilations"))
     with (output / "events.jsonl").open("w") as stdout, (output / "stderr.txt").open("w") as stderr:
         result = subprocess.run(command, cwd=checkout / pin["module"], env=env, stdout=stdout, stderr=stderr)
     with (output / "events.jsonl").open() as events:
@@ -277,14 +285,18 @@ def oracle(checkout: Path, output: Path, packages: list[str], pattern: str, work
             "".join(json.dumps(row, sort_keys=True) + "\n" for row in leaves[start:start + 1000])
         )
     input_capture = summarize_inputs(inputs)
+    result_capture = summarize_results(output / "compilations", inputs)
     summary.update({
         "schema": 1, "oracle": pin, "command": command,
         "exit_status": result.returncode, "products": len(list(products.glob("*.json"))),
         "compiler_invocations": input_capture["invocations"], "input_capture": input_capture,
+        "result_capture": result_capture,
         "scope": "filtered" if pattern or packages else "all-native-go-tests",
         "tsz_parity": "unmeasured",
         "capture": "reporting-only Go overlay; upstream comparisons unchanged",
     })
+    if result_capture["missing_invocations"]:
+        summary["observation_error"] = "native compiler invocations are missing completed-result records"
     if not summary["products"]:
         summary["observation_error"] = "no baseline products captured; a passing parent may have matched no cases"
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
