@@ -15,7 +15,7 @@
 # Options:
 #   --dry-run    Show what would be cleaned without deleting anything
 #   --full       Also remove Rust build caches (.target/, .target-bench/)
-#   --quiet      Suppress output (for use in git hooks)
+#   --quiet      Suppress output
 #   -h, --help   Show this help
 #
 # Protected (never deleted without --full):
@@ -29,7 +29,7 @@
 #   ./scripts/setup/clean.sh --dry-run    # Preview what would be removed
 #   ./scripts/setup/clean.sh              # Clean debris, keep build caches
 #   ./scripts/setup/clean.sh --full       # Nuke everything including build caches
-#   ./scripts/setup/clean.sh --quiet      # Silent mode (git hooks)
+#   ./scripts/setup/clean.sh --quiet      # Silent mode
 
 set -euo pipefail
 
@@ -50,7 +50,7 @@ Usage:
 Options:
   --dry-run    Show what would be cleaned without deleting anything
   --full       Also remove Rust build caches (.target/, .target-bench/)
-  --quiet      Suppress output (for use in git hooks)
+  --quiet      Suppress output
   -h, --help   Show this help
 
 Protected (never deleted without --full):
@@ -64,7 +64,7 @@ Examples:
   scripts/setup/clean.sh --dry-run    # Preview what would be removed
   scripts/setup/clean.sh              # Clean debris, keep build caches
   scripts/setup/clean.sh --full       # Nuke everything including build caches
-  scripts/setup/clean.sh --quiet      # Silent mode (git hooks)
+  scripts/setup/clean.sh --quiet      # Silent mode
 USAGE
 }
 
@@ -209,8 +209,8 @@ find "$REPO_ROOT/scripts" -mindepth 2 -maxdepth 3 -type d \
 # Phase 5: Remove .DS_Store files everywhere
 find "$REPO_ROOT" -name ".DS_Store" -delete 2>/dev/null || true
 
-# Phase 6: Remove stale package-lock.json files
-find "$REPO_ROOT" -name "package-lock.json" -not -path "*/TypeScript/*" -delete 2>/dev/null || true
+# Dependency lockfiles are source inputs, including inside independent oracle
+# checkouts. Never recursively delete them by basename.
 
 # Phase 7: Remove bench/profiling leftovers
 # - typescript/ (lowercase) is a tsc build clone from bench scripts (not the TypeScript/ submodule)
