@@ -214,7 +214,7 @@ HARNESS_REQUIRED_RULES: dict[str, tuple[tuple[str, re.Pattern[str]], ...]] = {
         ("missing-complete-product-comparison", re.compile(r"\bcompareCanonicalProductSets\b")),
         ("missing-compiler-outcome-comparison", re.compile(r"\bcompareCompilerOutcomes\b")),
         ("missing-pinned-oracle-resolution", re.compile(r"\bresolvePinnedOracle\b")),
-        ("missing-independent-dual-invocation", re.compile(r"Promise\.all\s*\(\s*\[\s*oracleTranspiler\.transpile")),
+        ("missing-independent-dual-invocation", re.compile(r"Promise\.all(?:Settled)?\s*\(\s*\[\s*oracleTranspiler\.transpile")),
         ("missing-oracle-result-provenance", re.compile(r"oracle:\s*oracle\.provenance")),
         ("missing-js-domain-only-projection", re.compile(r"baseline\.jsOutputs\.map\(product => product\.name\)")),
         ("missing-dts-domain-only-projection", re.compile(r"baseline\.dtsOutputs\.map\(product => product\.name\)")),

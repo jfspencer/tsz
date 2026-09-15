@@ -32,6 +32,7 @@ import {
   compareCanonicalProductSets,
   type ProductSetComparison,
 } from './canonical-products.js';
+import { detailRowsFingerprint, invocationEvidence, type InvocationEvidence } from './result-evidence.js';
 import { resolvePinnedOracle } from './oracle.js';
 import {
   canonicalUnsupportedReasons,
@@ -164,6 +165,8 @@ interface TestResult {
   jsProductMatch: boolean | null;
   dtsProductMatch: boolean | null;
   artifactState: ArtifactState;
+  oracleEvidence: InvocationEvidence;
+  tszEvidence: InvocationEvidence;
   outcomeError?: string;
   jsError?: string;
   dtsError?: string;
@@ -203,38 +206,6 @@ type DtsDiscoveryCache = Record<string, DtsDiscoveryEntry>;
 // over the full emit test set.
 function hashString(str: string): string {
   return createHash('sha256').update(str).digest('hex');
-}
-
-function detailRowsFingerprint(results: Array<Record<string, unknown>>): string {
-  const rows = results.map(result => ({
-    // Keep keys in lexical order so this byte stream agrees with Python's
-    // json.dumps(..., sort_keys=True) in query-emit.py.
-    artifactState: result.artifactState ?? null,
-    baselineFile: result.baselineFile ?? null,
-    dtsError: result.dtsError ?? null,
-    dtsMatch: result.dtsMatch ?? null,
-    dtsProductError: result.dtsProductError ?? null,
-    dtsProductMatch: result.dtsProductMatch ?? null,
-    dtsSelected: result.dtsSelected ?? null,
-    dtsStatus: result.dtsStatus ?? null,
-    jsError: result.jsError ?? null,
-    jsMatch: result.jsMatch ?? null,
-    jsProductError: result.jsProductError ?? null,
-    jsProductMatch: result.jsProductMatch ?? null,
-    jsSelected: result.jsSelected ?? null,
-    jsStatus: result.jsStatus ?? null,
-    name: result.name ?? null,
-    outcomeError: result.outcomeError ?? null,
-    outcomeMatch: result.outcomeMatch ?? null,
-    testPath: result.testPath ?? null,
-  })).sort((left, right) => {
-    const leftKey = `${left.name ?? ''}\0${left.baselineFile ?? ''}\0${left.testPath ?? ''}`;
-    const rightKey = `${right.name ?? ''}\0${right.baselineFile ?? ''}\0${right.testPath ?? ''}`;
-    if (leftKey < rightKey) return -1;
-    if (leftKey > rightKey) return 1;
-    return 0;
-  });
-  return `sha256:${hashString(JSON.stringify(rows))}`;
 }
 
 // ============================================================================
@@ -627,11 +598,15 @@ async function runTest(
     jsProductMatch: null,
     dtsProductMatch: null,
     artifactState: 'incomplete',
+    oracleEvidence: { state: 'not-run', reason: 'not-started' },
+    tszEvidence: { state: 'not-run', reason: 'not-started' },
   };
 
   try {
     if (testCase.unsupportedReason) {
       result.artifactState = 'unsupported';
+      result.oracleEvidence = { state: 'not-run', reason: 'unsupported' };
+      result.tszEvidence = { state: 'not-run', reason: 'unsupported' };
       const message = `UNSUPPORTED_CANONICAL_EMIT: ${testCase.unsupportedReason}`;
       const jsObservation = artifactSurfaceObservation('unsupported', selected.js, null, null);
       const dtsObservation = artifactSurfaceObservation('unsupported', selected.dts, null, null);
@@ -705,10 +680,19 @@ async function runTest(
     // The oracle result never feeds TSZ arguments or output selection. Both
     // external processes receive the same authored options and independently
     // staged source graph, then their complete product maps are compared.
-    const [oracleResult, tszResult] = await Promise.all([
+    const [oracleSettled, tszSettled] = await Promise.allSettled([
       oracleTranspiler.transpile(testCase.source, testCase.target, testCase.module, transpileOptions),
       tszTranspiler.transpile(testCase.source, testCase.target, testCase.module, transpileOptions),
     ]);
+
+    result.oracleEvidence = invocationEvidence(oracleSettled);
+    result.tszEvidence = invocationEvidence(tszSettled);
+    // Retain the successful side even if its peer crashed or timed out. Wait
+    // for both before returning so no child outlives its recorded observation.
+    if (oracleSettled.status === 'rejected') throw oracleSettled.reason;
+    if (tszSettled.status === 'rejected') throw tszSettled.reason;
+    const oracleResult = oracleSettled.value;
+    const tszResult = tszSettled.value;
 
     const outcomeComparison = compareCompilerOutcomes(oracleResult.outcome, tszResult.outcome);
     result.artifactState = compilerArtifactState(oracleResult.outcome, tszResult.outcome);
@@ -1079,6 +1063,8 @@ async function main() {
       baselineFile: string;
       testPath: string | null;
       artifactState: ArtifactState;
+      oracleEvidence: InvocationEvidence;
+      tszEvidence: InvocationEvidence;
       jsSelected: boolean;
       dtsSelected: boolean;
       outcomeMatch: boolean | null;
@@ -1105,6 +1091,8 @@ async function main() {
         baselineFile: r.name + '.js',
         testPath: r.testPath,
         artifactState: r.artifactState,
+        oracleEvidence: r.oracleEvidence,
+        tszEvidence: r.tszEvidence,
         jsSelected: r.jsSelected,
         dtsSelected: r.dtsSelected,
         outcomeMatch: r.outcomeMatch,
@@ -1138,7 +1126,7 @@ async function main() {
       gitSha = undefined;
     }
     const detail = {
-      detailSchemaVersion: 2,
+      detailSchemaVersion: 3,
       timestamp: new Date().toISOString(),
       ...(gitSha ? { git_sha: gitSha } : {}),
       oracle: oracle.provenance,

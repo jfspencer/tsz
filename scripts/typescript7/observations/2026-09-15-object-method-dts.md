@@ -60,3 +60,19 @@ parameters, the combined quoted/computed-key case, object-valued returns, and
 value aliases. The original `declFileEmitDeclarationOnly` case also needs class
 instance/constructor checking and dependent call summaries. These changes do
 not establish complete declaration conformance or a new full-corpus percentage.
+
+## Follow-up with payload evidence
+
+The schema 3 emit runner was used to remeasure the same immutable parent binary
+and the final compiler binary. The stable key sets contain the same 164 rows,
+with no duplicates. All 140 executed rows retain identical observed diagnostic
+records and JS/DTS path-to-byte hashes; 24 rows remain unexecuted because of
+unsupported harness features. Two oracle rows have unknown structured
+diagnostic identity, which remains an evidence gap. The regression-set gate
+passes. Exact pass totals remain 16 JS and one DTS; no broad improvement is
+claimed.
+
+Evidence: `emit-evidence-before.json`, `emit-evidence-after.json`, and
+`emit-evidence-comparison.json` in the same ignored artifact directory. The
+comparison records binary and report hashes. See `scripts/emit/EVIDENCE.md` for
+the scope and limits of the new records.

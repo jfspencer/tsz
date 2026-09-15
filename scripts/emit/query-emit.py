@@ -329,7 +329,7 @@ def emit_detail_rows_match_summary(data):
         if status not in ("pass", "fail", "skip")
     )
     schema_v2_keys = tuple(row_summary)
-    if data.get("detailSchemaVersion") == 2 or any(
+    if data.get("detailSchemaVersion") in (2, 3) or any(
         key.endswith("ProductMismatch") for key in detail_summary
     ):
         return all(
@@ -357,7 +357,7 @@ def emit_detail_row_fingerprint(data):
     if not isinstance(results, list):
         return None
 
-    schema_v2 = data.get("detailSchemaVersion") == 2
+    schema_v2 = data.get("detailSchemaVersion") in (2, 3)
     rows = []
     for result in results:
         row = {
@@ -383,13 +383,21 @@ def emit_detail_row_fingerprint(data):
                 "outcomeError": result.get("outcomeError"),
                 "outcomeMatch": result.get("outcomeMatch"),
             })
+        if data.get("detailSchemaVersion") == 3:
+            row.update({
+                "oracleEvidence": result.get("oracleEvidence"),
+                "tszEvidence": result.get("tszEvidence"),
+            })
         rows.append(row)
+    def row_key(row):
+        fields = tuple(row.get(key) or "" for key in ("name", "baselineFile", "testPath"))
+        if data.get("detailSchemaVersion") == 3:
+            # JavaScript compares strings as UTF-16 code units.
+            return tuple(field.encode("utf-16-be", errors="surrogatepass") for field in fields)
+        return fields
+
     encoded = json.dumps(
-        sorted(rows, key=lambda row: (
-            row.get("name") or "",
-            row.get("baselineFile") or "",
-            row.get("testPath") or "",
-        )),
+        sorted(rows, key=row_key),
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
