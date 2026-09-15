@@ -290,35 +290,12 @@ fn invalid_character_parameter_sibling_remains_a_syntax_product() {
     let source = "function recovered(a,¬) {}";
     for strict in [false, true] {
         let output = compile_source("invalid-parameter.ts", source, strict);
-        let expected = if strict {
-            vec![
-                (
-                    source.find('a').expect("implicit-any parameter") as u32,
-                    1,
-                    7006,
-                    "Parameter 'a' implicitly has an 'any' type.",
-                ),
-                (
-                    source.find('¬').expect("invalid character") as u32,
-                    1,
-                    1127,
-                    "Invalid character.",
-                ),
-                (
-                    source.find('¬').expect("recovered parameter") as u32,
-                    1,
-                    7006,
-                    "Parameter '¬' implicitly has an 'any' type.",
-                ),
-            ]
-        } else {
-            vec![(
-                source.find('¬').expect("invalid character") as u32,
-                1,
-                1127,
-                "Invalid character.",
-            )]
-        };
+        let expected = vec![(
+            source.find('¬').expect("invalid character") as u32,
+            1,
+            1127,
+            "Invalid character.",
+        )];
         assert_eq!(
             output
                 .diagnostics

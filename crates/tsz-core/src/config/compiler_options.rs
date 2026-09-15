@@ -61,7 +61,7 @@ macro_rules! option_schema {
 
         impl CompilerOptionKey {
             pub(super) const ALL: &'static [Self] = &[$(Self::$key,)+];
-            const fn json_name(self) -> &'static str {
+            pub(crate) const fn json_name(self) -> &'static str {
                 match self { $(Self::$key => $name,)+ }
             }
             const fn kind_name(self) -> &'static str {
@@ -142,6 +142,7 @@ option_schema! {
     NoEmit => no_emit: bool, "noEmit", bool;
     NoEmitOnError => no_emit_on_error: bool, "noEmitOnError", bool;
     Declaration => declaration: bool, "declaration", bool;
+    EmitDeclarationOnly => emit_declaration_only: bool, "emitDeclarationOnly", bool;
     DeclarationMap => declaration_map: bool, "declarationMap", bool;
     SourceMap => source_map: bool, "sourceMap", bool;
     InlineSourceMap => inline_source_map: bool, "inlineSourceMap", bool;
@@ -321,7 +322,10 @@ pub(super) fn decode_compiler_options(
             span: occurrence.span,
         };
         if let Some(key) = CompilerOptionKey::from_json_name(&occurrence.name) {
-            decoded.authored_option_origins.insert(key, origin.clone());
+            decoded
+                .authored_option_origins
+                .entry(key)
+                .or_insert_with(|| origin.clone());
             if key == CompilerOptionKey::Target
                 && let Some(target) = occurrence.value.as_str()
                 && let TargetValueOutcome::Invalid { message, code } = classify_target_value(target)
@@ -421,5 +425,20 @@ fn removed_option_diagnostic(
             5108,
         )),
         _ => None,
+    }
+}
+
+impl super::ProjectProvenance {
+    pub(crate) fn program_option_origin(
+        &self,
+        primary: CompilerOptionKey,
+        secondary: Option<CompilerOptionKey>,
+    ) -> Option<&CompilerOptionOrigin> {
+        self.entry_option_origins
+            .iter()
+            .filter(|(key, _)| **key == primary || Some(**key) == secondary)
+            .map(|(_, origin)| origin)
+            .min_by_key(|origin| origin.span.key.0)
+            .or(self.entry_compiler_options_origin.as_ref())
     }
 }

@@ -227,10 +227,13 @@ fn missing_conditional_expression_hosts_have_one_local_javascript_fence() {
                 .is_claimed(),
             "independent same-file JavaScript was withheld for {source}",
         );
-        assert!(!analysis.product_is_claimed(
-            CapabilityTarget::JavaScript,
-            CapabilityScope::File(file.source.id),
-            &CompilerOptions::default(),
-        ));
+        assert!(
+            !analysis
+                .claim(
+                    CapabilityTarget::JavaScript,
+                    CapabilityScope::File(file.source.id)
+                )
+                .is_claimed()
+        );
     }
 }

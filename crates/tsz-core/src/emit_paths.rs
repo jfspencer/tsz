@@ -63,35 +63,28 @@ impl EmitPlan {
             if is_declaration_source(&file.source.path) {
                 continue;
             }
-            let declarations = options
-                .declaration_dir
-                .as_deref()
-                .or(options.out_dir.as_deref());
-            let products_for_file = [
-                (
-                    CapabilityTarget::JavaScript,
-                    options.out_dir.as_deref(),
-                    false,
-                    options.source_map && !options.inline_source_map,
-                ),
-                (
-                    CapabilityTarget::Declaration,
-                    declarations,
-                    true,
-                    options.declaration_map,
-                ),
-            ];
-            for (capability, directory, declaration, map_enabled) in products_for_file
-                .into_iter()
-                .take(if options.declaration { 2 } else { 1 })
-            {
-                if !capabilities.product_is_claimed(
-                    capability,
-                    CapabilityScope::File(file.source.id),
-                    options,
-                ) {
+            for capability in options.requested_emit_targets() {
+                if !capabilities
+                    .claim(capability, CapabilityScope::File(file.source.id))
+                    .is_claimed()
+                {
                     continue;
                 }
+                let declaration = capability == CapabilityTarget::Declaration;
+                let (directory, map_enabled) = if declaration {
+                    (
+                        options
+                            .declaration_dir
+                            .as_deref()
+                            .or(options.out_dir.as_deref()),
+                        options.declaration_map,
+                    )
+                } else {
+                    (
+                        options.out_dir.as_deref(),
+                        options.source_map && !options.inline_source_map,
+                    )
+                };
                 let output = paths.output_target(&file.source, directory, declaration);
                 let map = map_enabled.then(|| output.map());
                 let kind = if declaration {
@@ -124,6 +117,11 @@ impl EmitPlan {
     }
     pub(crate) fn for_file(&self, id: FileId) -> &EmitFilePlan {
         &self.files[id.0 as usize]
+    }
+    pub(crate) fn output_paths(&self) -> impl Iterator<Item = &PathBuf> {
+        self.files
+            .iter()
+            .flat_map(|file| file.javascript.iter().chain(&file.declaration))
     }
     fn preflight(&mut self, files: &[ProgramFile], products: &[PlannedProduct]) {
         let input_paths: BTreeSet<String> = files

@@ -1,6 +1,6 @@
 macro_rules! expect_claimed_extension {
     () => {
-        trait ExpectClaimed<T> {
+        pub(crate) trait ExpectClaimed<T> {
             fn expect_claimed(self, message: &str) -> T;
         }
 

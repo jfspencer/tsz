@@ -1,9 +1,6 @@
 use super::*;
 
-#[macro_use]
-#[path = "fixtures/service_query_expect.rs"]
-mod service_query_expect;
-expect_claimed_extension!();
+use super::tests::ExpectClaimed;
 
 fn offset(source: &str, marker: &str) -> u32 {
     source.find(marker).unwrap() as u32

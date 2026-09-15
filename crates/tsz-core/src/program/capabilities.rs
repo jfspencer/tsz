@@ -687,19 +687,10 @@ impl CapabilityAnalysis {
                 .filter(|file| !is_declaration_source(&file.source.path))
                 .all(|file| {
                     let scope = CapabilityScope::File(file.source.id);
-                    std::iter::once(CapabilityTarget::JavaScript)
-                        .chain(options.declaration.then_some(CapabilityTarget::Declaration))
-                        .all(|target| self.product_is_claimed(target, scope, options))
+                    options
+                        .requested_emit_targets()
+                        .all(|target| self.claim(target, scope).is_claimed())
                 })
-    }
-
-    pub(crate) fn product_is_claimed(
-        &self,
-        target: CapabilityTarget,
-        scope: CapabilityScope,
-        _options: &CompilerOptions,
-    ) -> bool {
-        self.claim(target, scope).is_claimed()
     }
 }
 

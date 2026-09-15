@@ -91,16 +91,6 @@ impl ProjectProvenance {
         self.option_origin(key)
             .filter(|origin| origin.belongs_to(config_path, &self.current_directory))
     }
-    pub(crate) fn program_option_origin(
-        &self,
-        primary: CompilerOptionKey,
-        secondary: Option<CompilerOptionKey>,
-    ) -> Option<&CompilerOptionOrigin> {
-        self.entry_option_origins
-            .get(&primary)
-            .or_else(|| secondary.and_then(|key| self.entry_option_origins.get(&key)))
-            .or(self.entry_compiler_options_origin.as_ref())
-    }
     pub(crate) fn root_reason(&self, path: &Path) -> Option<RootReason> {
         self.root_reasons
             .get(&path_key(path, self.case_sensitive))

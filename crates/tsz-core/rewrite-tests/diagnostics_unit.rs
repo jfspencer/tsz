@@ -73,7 +73,7 @@ fn diagnostic_order_uses_full_public_identity_before_internal_file_id() {
             .with_related_information(vec![RelatedInformation::unlocated("Other.", 9002, 1)]);
     distinct_related.file_id = Some(FileId(2));
     let mut diagnostics = vec![
-        duplicate.clone(),
+        duplicate,
         Diagnostic::error("case.ts".to_string(), 3, 1, "C".to_string(), 3000),
         Diagnostic::error("case.ts".to_string(), 3, 2, "A".to_string(), 1000)
             .with_related_information(vec![related]),

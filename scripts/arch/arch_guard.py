@@ -1242,7 +1242,8 @@ def rewrite_architecture_metrics(root: Path) -> dict[str, int]:
     emit_plan = _rust_struct_body(emit_paths_text, "EmitPlan")
     check_condition = _required_metric_condition(
         program_text,
-        r"\blet\s+CheckResult\s*\{[^{}]*\}\s*=\s*if\s+"
+        r"\blet\s+CheckResult\s*\{[^{}]*\}\s*=\s*"
+        r"(?:if\s+terminal\s*\{[^{}]*\}\s*else\s+)?if\s+"
         r"(?P<condition>options\.no_check[^{}]*)\s*\{",
         "program_whole_check_skip_terms",
     )

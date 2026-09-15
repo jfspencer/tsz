@@ -579,50 +579,10 @@ fn private_and_malformed_method_shapes_remain_parser_recovery() {
     );
     assert_eq!(semantic.semantic_completion, SemanticCompletion::Deferred);
     assert_eq!(
-        output
-            .diagnostics
-            .iter()
-            .map(|diagnostic| {
-                (
-                    diagnostic.file.as_str(),
-                    diagnostic.code,
-                    diagnostic.start,
-                    diagnostic.length,
-                    diagnostic.message_text.as_str(),
-                    diagnostic.category,
-                    diagnostic.related_information.as_slice(),
-                )
-            })
-            .collect::<Vec<_>>(),
-        vec![
-            (
-                "object-literal-method.ts",
-                1005,
-                47,
-                1,
-                "'{' expected.",
-                DiagnosticCategory::Error,
-                &[][..],
-            ),
-            (
-                "object-literal-method.ts",
-                2304,
-                61,
-                14,
-                "Cannot find name 'MissingSibling'.",
-                DiagnosticCategory::Error,
-                &[][..],
-            ),
-            (
-                "object-literal-method.ts",
-                2304,
-                99,
-                18,
-                "Cannot find name 'MissingIndependent'.",
-                DiagnosticCategory::Error,
-                &[][..],
-            ),
-        ]
+        output.diagnostics,
+        service
+            .syntactic_diagnostics("object-literal-method.ts")
+            .diagnostics,
     );
     assert_eq!(output.semantic_completion, SemanticCompletion::Deferred);
     assert!(output.emitted_files.is_empty());

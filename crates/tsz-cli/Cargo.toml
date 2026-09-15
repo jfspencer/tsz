@@ -54,5 +54,9 @@ path = "rewrite-tests/standard_library_options.rs"
 name = "rewrite_project_config"
 path = "rewrite-tests/project_config.rs"
 
+[[test]]
+name = "rewrite_emit_declaration_only"
+path = "rewrite-tests/emit_declaration_only.rs"
+
 [lints]
 workspace = true

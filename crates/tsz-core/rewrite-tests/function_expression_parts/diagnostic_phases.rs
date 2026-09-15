@@ -16,12 +16,14 @@ fn diagnostic_identities(
         .collect()
 }
 
-fn aggregate_product_identities(
+fn selected_product_identities(
     source: &str,
     semantic: &[tsz::diagnostics::Diagnostic],
 ) -> Vec<(u32, u32, u32, String)> {
     let mut aggregate = parse(source).diagnostics;
-    aggregate.extend_from_slice(semantic);
+    if aggregate.is_empty() {
+        aggregate.extend_from_slice(semantic);
+    }
     let mut identities = aggregate
         .iter()
         .map(|diagnostic| {
@@ -63,7 +65,7 @@ fn recovered_function_header_blocks_emit_but_body_recovery_keeps_siblings_visibl
     let output = service.compile();
     assert_eq!(
         diagnostic_identities(&output.diagnostics),
-        aggregate_product_identities(source, &semantic.diagnostics),
+        selected_product_identities(source, &semantic.diagnostics),
     );
     assert_eq!(output.semantic_completion, SemanticCompletion::Deferred);
 }
@@ -87,7 +89,7 @@ fn authored_return_mismatch_survives_a_deferred_flow_host() {
     let output = service.compile();
     assert_eq!(
         diagnostic_identities(&output.diagnostics),
-        aggregate_product_identities(source, &semantic.diagnostics),
+        selected_product_identities(source, &semantic.diagnostics),
     );
     assert_eq!(output.semantic_completion, SemanticCompletion::Deferred);
 }
@@ -273,7 +275,7 @@ fn parenthesized_arrow_certainty_owns_missing_arrow_tokens_without_false_heads()
         let output = service.compile();
         assert_eq!(
             diagnostic_identities(&output.diagnostics),
-            aggregate_product_identities(source, &semantic.diagnostics),
+            selected_product_identities(source, &semantic.diagnostics),
         );
         assert_eq!(output.semantic_completion, SemanticCompletion::Deferred);
     }
@@ -326,7 +328,7 @@ fn unowned_function_expression_modifiers_withhold_products_and_name_fallout() {
     let checked = service.compile();
     assert_eq!(
         diagnostic_identities(&checked.diagnostics),
-        aggregate_product_identities(checked_source, &semantic.diagnostics),
+        selected_product_identities(checked_source, &semantic.diagnostics),
     );
     assert_eq!(checked.semantic_completion, SemanticCompletion::Deferred);
 

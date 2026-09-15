@@ -280,6 +280,27 @@ class ArchGuardTests(unittest.TestCase):
         )
         self.assertIn("architecture-ratchet", self.codes())
 
+    def test_terminal_first_dispatch_still_measures_checker_skip_terms(self) -> None:
+        self.install_rewrite_metric_sources()
+        baseline = arch_guard.rewrite_architecture_metrics(self.root)
+        path = self.root / "crates/tsz-core/src/program.rs"
+        source = path.read_text(encoding="utf-8").replace(
+            "} = if options.no_check || !has_checkable_file {",
+            "} = if terminal { unchecked() } else if options.no_check || !has_checkable_file {",
+        )
+        path.write_text(source, encoding="utf-8")
+        measured = arch_guard.rewrite_architecture_metrics(self.root)
+        self.assertEqual(
+            measured["program_whole_check_skip_terms"],
+            baseline["program_whole_check_skip_terms"],
+        )
+        path.write_text(source.replace("!has_checkable_file", "!has_checkable_file || extra_skip"))
+        measured = arch_guard.rewrite_architecture_metrics(self.root)
+        self.assertGreater(
+            measured["program_whole_check_skip_terms"],
+            baseline["program_whole_check_skip_terms"],
+        )
+
     def test_rewrite_architecture_ratchet_fails_closed_without_check_owner(self) -> None:
         self.install_rewrite_metric_sources()
         baseline = arch_guard.rewrite_architecture_metrics(self.root)

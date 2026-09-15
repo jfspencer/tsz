@@ -809,20 +809,7 @@ fn declaration_host_recovery_keeps_siblings_and_phase_products_independent() {
 
     let output = service.compile();
     assert_completion(&output, SemanticCompletion::Deferred);
-    assert_eq!(
-        diagnostic_rows(&output.diagnostics),
-        [
-            (1005, 19, 1, DiagnosticCategory::Error, "'{' expected."),
-            (
-                2304,
-                33,
-                14,
-                DiagnosticCategory::Error,
-                "Cannot find name 'MissingSibling'.",
-            ),
-        ],
-        "the compiler product publishes every independently owned diagnostic phase",
-    );
+    assert_eq!(output.diagnostics, syntax.diagnostics);
 }
 
 #[test]

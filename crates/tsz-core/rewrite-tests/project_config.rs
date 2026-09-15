@@ -1348,7 +1348,7 @@ fn syntax_aggregates_with_overwrite_preflight_when_emit_is_demanded() {
 }
 
 #[test]
-fn syntax_aggregates_with_collision_and_root_dir_program_diagnostics() {
+fn syntax_selects_before_root_dir_but_emit_collisions_remain_additive() {
     let fixture = TempDir::new().expect("tempdir");
     let root = fixture.path();
     write(root, "syntax.ts", "const broken = ;");
@@ -1384,7 +1384,7 @@ fn syntax_aggregates_with_collision_and_root_dir_program_diagnostics() {
         r#"{"compilerOptions":{"rootDir":"src","outDir":"dist"},"files":["syntax.ts"]}"#,
     );
     let root_dir = compile();
-    assert_eq!(output_codes(&root_dir), [6059, 1109]);
+    assert_eq!(output_codes(&root_dir), [1109]);
 }
 
 #[test]

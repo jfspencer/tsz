@@ -738,16 +738,16 @@ fn recovered_type_members_use_the_type_recovery_product_owner() {
 
         let analysis = default_analysis(&file);
         let scope = CapabilityScope::File(file.source.id);
-        assert!(analysis.product_is_claimed(
-            CapabilityTarget::JavaScript,
-            scope,
-            &CompilerOptions::default(),
-        ));
-        assert!(!analysis.product_is_claimed(
-            CapabilityTarget::Declaration,
-            scope,
-            &CompilerOptions::default(),
-        ));
+        assert!(
+            analysis
+                .claim(CapabilityTarget::JavaScript, scope)
+                .is_claimed()
+        );
+        assert!(
+            !analysis
+                .claim(CapabilityTarget::Declaration, scope)
+                .is_claimed()
+        );
     }
 }
 

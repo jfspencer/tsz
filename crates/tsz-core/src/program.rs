@@ -21,7 +21,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 mod capabilities;
-mod diagnostic_products;
 mod display_summary;
 mod import_aliases;
 mod javascript_assignments;
@@ -87,6 +86,7 @@ enum DeferredOptionValueKind {
     Path,
 }
 deferred_compiler_options! {
+    Composite => ("composite", Boolean, All, false, false),
     AlwaysStrict => ("alwaysStrict", Boolean, StrictEmit, false, true),
     NoImplicitThis => ("noImplicitThis", Boolean, SemanticTypes, false, false),
     StrictBindCallApply => ("strictBindCallApply", Boolean, SemanticTypes, false, false),
@@ -177,6 +177,7 @@ compiler_options! {
     no_emit: bool = false,
     no_emit_on_error: bool = false,
     declaration: bool = false,
+    emit_declaration_only: bool = false,
     declaration_map: bool = false,
     source_map: bool = false,
     inline_source_map: bool = false,
@@ -191,6 +192,12 @@ compiler_options! {
     deferred_options: BTreeMap<DeferredCompilerOption, DeferredCompilerOptionValue> = BTreeMap::new(),
 }
 impl CompilerOptions {
+    pub(crate) fn requested_emit_targets(&self) -> impl Iterator<Item = CapabilityTarget> {
+        (!self.emit_declaration_only)
+            .then_some(CapabilityTarget::JavaScript)
+            .into_iter()
+            .chain(self.declaration.then_some(CapabilityTarget::Declaration))
+    }
     #[must_use]
     pub const fn effective_strict_null_checks(&self) -> bool {
         matches!(self.strict_null_checks, Some(true))
@@ -601,7 +608,6 @@ impl Compiler {
                 .into_iter()
                 .map(|name| Diagnostic::global(format!("Cannot find global type '{name}'."), 2318)),
         );
-        program_diagnostics.extend(emit_plan.emit_diagnostics().iter().cloned());
         sort_and_deduplicate(&mut program_diagnostics);
         let unchecked = |completion, declaration_display_summaries| CheckResult {
             diagnostics: Vec::new(),
@@ -617,22 +623,15 @@ impl Compiler {
             semantic_completion: mut checker_completion,
             file_semantic_completions,
             declaration_display_summaries,
-        } = if options.no_check || !has_checkable_file {
-            if terminal {
-                unchecked(
-                    SemanticCompletion::Deferred,
-                    DeclarationDisplaySummaries::default(),
-                )
-            } else {
-                unchecked(
-                    SemanticCompletion::Complete,
-                    summarize_program(&program, options, &capabilities),
-                )
-            }
-        } else if terminal {
+        } = if terminal {
             unchecked(
                 SemanticCompletion::Deferred,
                 DeclarationDisplaySummaries::default(),
+            )
+        } else if options.no_check || !has_checkable_file {
+            unchecked(
+                SemanticCompletion::Complete,
+                summarize_program(&program, options, &capabilities),
             )
         } else {
             check_program(&program, options, &capabilities)
@@ -654,12 +653,19 @@ impl Compiler {
             config_diagnostics
         };
         if !terminal {
-            diagnostic_products::DiagnosticPhaseProducts([
+            // TypeScript 7.0.2: GetDiagnosticsOfAnyProgram selects the first
+            // nonempty phase; service queries retain each raw phase separately.
+            for phase in [
                 &syntax_diagnostics,
                 &program_diagnostics,
                 &semantic_diagnostics,
-            ])
-            .append_to(&mut diagnostics);
+            ] {
+                diagnostics.extend_from_slice(phase);
+                if !phase.is_empty() {
+                    break;
+                }
+            }
+            diagnostics.extend(emit_plan.emit_diagnostics().iter().cloned());
         }
         sort_and_deduplicate_for_cli(&mut diagnostics);
         let mut semantic_completion = if terminal {
@@ -691,23 +697,12 @@ impl Compiler {
                 .collect()
         };
         emitted_files.sort_by(|left, right| left.path.cmp(&right.path));
-        let planned_declarations = program
-            .files
-            .iter()
-            .filter(|file| emit_plan.for_file(file.source.id).declaration.is_some())
-            .count();
-        let planned_javascript = program
-            .files
-            .iter()
-            .filter(|file| emit_plan.for_file(file.source.id).javascript.is_some())
-            .count();
         if !emit_suppressed
-            && (emitted_files.iter().filter(|file| file.declaration).count() < planned_declarations
-                || emitted_files
-                    .iter()
-                    .filter(|file| !file.declaration)
-                    .count()
-                    < planned_javascript)
+            && emit_plan.output_paths().any(|path| {
+                emitted_files
+                    .binary_search_by(|file| file.path.cmp(path))
+                    .is_err()
+            })
         {
             semantic_completion = semantic_completion.combine(SemanticCompletion::Deferred);
         }
@@ -751,7 +746,7 @@ impl Compiler {
             && (project_stats.root_files > 0 || project_stats.project_configs > 0)
         {
             CompileExitStatus::DiagnosticsPresentOutputsGenerated
-        } else if options.no_emit
+        } else if options.no_emit && options.requested_emit_targets().next().is_some()
             || options.no_emit_on_error
             || terminal
             || !emit_plan.emit_diagnostics().is_empty()
@@ -786,17 +781,16 @@ fn compiler_option_diagnostics(
     options: &CompilerOptions,
     provenance: &ProjectProvenance,
 ) -> (Vec<Diagnostic>, Vec<Diagnostic>) {
+    use CompilerOptionKey as Key;
     let mut diagnostics = Vec::new();
     let mut fatal_diagnostics = Vec::new();
-    let target_origin = provenance.option_origin(CompilerOptionKey::Target);
     match classify_target_value(&options.target) {
-        TargetValueOutcome::Accepted => {}
-        TargetValueOutcome::Invalid { message, code } => {
-            let message = message.to_string();
-            if target_origin.is_none() {
-                fatal_diagnostics.push(Diagnostic::global(message, code));
-            }
+        TargetValueOutcome::Invalid { message, code }
+            if provenance.option_origin(Key::Target).is_none() =>
+        {
+            fatal_diagnostics.push(Diagnostic::global(message.to_string(), code));
         }
+        TargetValueOutcome::Accepted | TargetValueOutcome::Invalid { .. } => {}
         TargetValueOutcome::Removed { message, code } => fatal_diagnostics.push(
             match provenance.program_option_origin(CompilerOptionKey::Target, None) {
                 Some(origin) => origin.diagnostic_at_value(message.to_string(), code),
@@ -804,34 +798,47 @@ fn compiler_option_diagnostics(
             },
         ),
     }
-    let option_dependency = |primary, secondary, message| match provenance
-        .program_option_origin(primary, Some(secondary))
-    {
-        Some(origin) => origin.diagnostic_at_key(message, 5052),
-        None => Diagnostic::global(message, 5052),
+    let mut require = |primary: Key, secondary: Key, code, alternatives| {
+        let message = format!(
+            "Option '{}' cannot be specified without specifying option '{}'{alternatives}.",
+            primary.json_name(),
+            secondary.json_name()
+        );
+        diagnostics.push(
+            match provenance.program_option_origin(primary, Some(secondary)) {
+                Some(origin) => origin.diagnostic_at_key(message, code),
+                None => Diagnostic::global(message, code),
+            },
+        );
     };
     if options.strict_property_initialization == Some(true)
         && !options.effective_strict_null_checks()
     {
-        let message = concat!(
-            "Option 'strictPropertyInitialization' cannot be specified without specifying ",
-            "option 'strictNullChecks'."
-        )
-        .to_string();
-        diagnostics.push(option_dependency(
-            CompilerOptionKey::StrictPropertyInitialization,
-            CompilerOptionKey::StrictNullChecks,
-            message,
-        ));
+        require(
+            Key::StrictPropertyInitialization,
+            Key::StrictNullChecks,
+            5052,
+            "",
+        );
     }
     if options.check_js == Some(true) && !options.allow_js {
-        let message =
-            "Option 'checkJs' cannot be specified without specifying option 'allowJs'.".to_string();
-        diagnostics.push(option_dependency(
-            CompilerOptionKey::CheckJs,
-            CompilerOptionKey::AllowJs,
-            message,
-        ));
+        require(Key::CheckJs, Key::AllowJs, 5052, "");
+    }
+    // TypeScript 7.0.2: internal/compiler/program.go option dependencies.
+    // Composite defers through the option boundary without inventing TS5069.
+    let composite = matches!(
+        options
+            .deferred_options
+            .get(&DeferredCompilerOption::Composite),
+        Some(DeferredCompilerOptionValue::Boolean(true))
+    );
+    if options.emit_declaration_only && !options.declaration && !composite {
+        require(
+            Key::EmitDeclarationOnly,
+            Key::Declaration,
+            5069,
+            " or option 'composite'",
+        );
     }
     (diagnostics, fatal_diagnostics)
 }

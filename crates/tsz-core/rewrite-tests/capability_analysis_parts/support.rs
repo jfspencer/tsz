@@ -163,7 +163,9 @@ pub(super) fn assert_named_sibling_survives(source: &str) {
         "the claimed sibling must be checked"
     );
     let mut expected_compiler_product = diagnostics_fingerprint(&syntactic.diagnostics);
-    expected_compiler_product.extend(semantic_fingerprint(&semantic));
+    if expected_compiler_product.is_empty() {
+        expected_compiler_product.extend(semantic_fingerprint(&semantic));
+    }
     expected_compiler_product.sort_by(|left, right| {
         (&left.0, left.2, left.3, left.1, &left.5, left.4, &left.6).cmp(&(
             &right.0, right.2, right.3, right.1, &right.5, right.4, &right.6,

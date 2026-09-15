@@ -1061,11 +1061,14 @@ fn every_temporary_owner_has_a_typed_deletion_condition() {
                 .all(|record| { record.reason != NonclaimReason::Syntax(gap) })
         );
     }
-    assert!(literal.product_is_claimed(
-        CapabilityTarget::JavaScript,
-        CapabilityScope::File(template.source.id),
-        &options,
-    ));
+    assert!(
+        literal
+            .claim(
+                CapabilityTarget::JavaScript,
+                CapabilityScope::File(template.source.id)
+            )
+            .is_claimed()
+    );
 
     let map_options = CompilerOptions {
         source_map: true,

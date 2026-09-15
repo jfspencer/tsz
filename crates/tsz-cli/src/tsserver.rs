@@ -544,11 +544,12 @@ fn decode_disk_source(bytes: &[u8]) -> String {
     } else {
         return String::from_utf8_lossy(bytes).into_owned();
     };
-    let words = content
-        .chunks_exact(2)
+    let (pairs, _) = content.as_chunks::<2>();
+    let words = pairs
+        .iter()
         .map(|pair| match little_endian {
-            true => u16::from_le_bytes([pair[0], pair[1]]),
-            false => u16::from_be_bytes([pair[0], pair[1]]),
+            true => u16::from_le_bytes(*pair),
+            false => u16::from_be_bytes(*pair),
         })
         .collect::<Vec<_>>();
     String::from_utf16_lossy(&words)

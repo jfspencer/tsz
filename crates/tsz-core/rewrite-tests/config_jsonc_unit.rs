@@ -249,7 +249,7 @@ fn check_js_implies_discovery_but_explicit_allow_js_false_reports_ts5052() {
         (diagnostic.code, diagnostic.file.as_str()),
         (5052, "tsconfig.json")
     );
-    assert_eq!(diagnostic.start, config.find("\"checkJs\"").unwrap() as u32);
+    assert_eq!(diagnostic.start, config.find("\"allowJs\"").unwrap() as u32);
     assert_eq!(
         diagnostic.message_text,
         "Option 'checkJs' cannot be specified without specifying option 'allowJs'."
