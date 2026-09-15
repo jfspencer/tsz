@@ -1,0 +1,51 @@
+{
+  "oracle_version": "7.0.2",
+  "oracle_commit": "2bd066d87f5bafd315be9f40889d0a60b9e58e0b",
+  "cases": [
+    {
+      "name": "plain-method",
+      "source": "export const logger = { info(message: string) {} };\n",
+      "declaration": "export declare const logger: {\n    info(message: string): void;\n};\n"
+    },
+    {
+      "name": "renamed-method",
+      "source": "export const sink = { write(payload: string) {} };\n",
+      "declaration": "export declare const sink: {\n    write(payload: string): void;\n};\n"
+    },
+    {
+      "name": "parameter-kinds",
+      "source": "export const sink = { write(payload: string, flag?: boolean, ...rest: number[]) {} };\n",
+      "declaration": "export declare const sink: {\n    write(payload: string, flag?: boolean, ...rest: number[]): void;\n};\n"
+    },
+    {
+      "name": "nested",
+      "source": "export const sink = { inner: { write(payload: number) {} }, value: 1 };\n",
+      "declaration": "export declare const sink: {\n    inner: {\n        write(payload: number): void;\n    };\n    value: number;\n};\n"
+    },
+    {
+      "name": "source-order",
+      "source": "export const sink = { zebra: 1, alpha: \"text\", middle: true };\n",
+      "declaration": "export declare const sink: {\n    zebra: number;\n    alpha: string;\n    middle: boolean;\n};\n"
+    },
+    {
+      "name": "array-union",
+      "source": "export const sink = [{ write(payload: string) {} }, { value: 1 }];\n",
+      "declaration": "export declare const sink: ({\n    write(payload: string): void;\n    value?: undefined;\n} | {\n    write?: undefined;\n    value: number;\n})[];\n"
+    },
+    {
+      "name": "array-homogeneous",
+      "source": "export const sink = [{ write(payload: string) {} }, { write(payload: string) {} }];\n",
+      "declaration": "export declare const sink: {\n    write(payload: string): void;\n}[];\n"
+    },
+    {
+      "name": "empty-object",
+      "source": "export const sink = {};\n",
+      "declaration": "export declare const sink: {};\n"
+    },
+    {
+      "name": "object-parameter",
+      "source": "export const sink = { use(value: {field: string}) {} };\n",
+      "declaration": "export declare const sink: {\n    use(value: {\n        field: string;\n    }): void;\n};\n"
+    }
+  ]
+}

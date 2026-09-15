@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "version": "7.0.2",
+  "repository": "https://github.com/microsoft/typescript-go.git",
+  "tag": "typescript/v7.0.2",
+  "commit": "2bd066d87f5bafd315be9f40889d0a60b9e58e0b",
+  "tree": "ed2c2c12c401b84bd5888d0b889737495aa93a20",
+  "module": ".",
+  "testdata": "testdata",
+  "corpus": {
+    "path": "_submodules/TypeScript",
+    "repository": "https://github.com/microsoft/TypeScript.git",
+    "commit": "4d4f005c8541e0255a9d8791205fdce326e462bc",
+    "tree": "52d822feb4a8e997f866296b960402e97b0ed49b"
+  }
+}
