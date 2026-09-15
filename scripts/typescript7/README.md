@@ -68,6 +68,34 @@ gate. The report is explicitly scoped to baseline products; native internal
 assertions require separate ports. Candidate adapters must produce TSZ output;
 copying expected records is not a candidate implementation.
 
+## Native compiler input capture
+
+Oracle observations also capture the inputs to `harnessutil.CompileFilesEx`
+after upstream option parsing, root selection, path resolution, test-library
+insertion, and symlink construction. The Go overlay records these inputs
+without altering the native compilation or baseline comparison:
+
+- `inputs/invocations/*.json`: native package/test identity, invocation sequence,
+  ordered roots, working directory, compiler and harness options, virtual
+  filesystem entries, and the config source when present.
+- `inputs/blobs/<sha256>`: exact source bytes or symlink targets. Shared inputs
+  are stored once. No UTF-8 decoding changes binary fixtures or line endings.
+- `summary.json.input_capture`: validated invocation/blob counts and a manifest
+  hash covering every captured record and blob.
+
+Options use the pinned Go compiler's native JSON representation, including its
+numeric enums and distinct unset/false values. They are not a ready-to-use
+`tsconfig.json`. The default library path is recorded separately; bundled
+libraries remain in the pinned source inventory. Case sensitivity and symlink
+modes belong to the virtual filesystem and must survive a candidate adapter.
+
+Repeated calls are retained, including native consistency checks and compilation
+of generated declaration files. **A candidate must produce its own intermediate
+outputs** when replaying such checks; it must not compile captured oracle emit
+as a substitute for its own emit. This is an input ledger, not a completed
+replay engine. Other native drivers, such as build/watch and language-service
+tests, still need their own adapters.
+
 ## Release-native limitations observed locally
 
 The first complete 7.0.2 native run captured 66,885 products and reported
@@ -89,5 +117,9 @@ rerun on the current machine before making new exact-head claims.
 Harness checks:
 
 ```bash
-python3 -m unittest discover -s scripts/typescript7 -p 'test_*.py'
+scripts/safe-run.sh python3 -m unittest discover -s scripts/typescript7 -p 'test_*.py'
 ```
+
+These checks include native Go capture contracts and require the pinned checkout
+from `setup`. The contract tests are injected only into their separate test run;
+they do not add passing leaves to an oracle observation.

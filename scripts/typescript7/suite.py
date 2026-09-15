@@ -16,6 +16,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+from input_manifest import summarize_inputs
+
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 
@@ -226,10 +228,21 @@ def make_overlay(checkout: Path, output: Path) -> Path:
     modified = modified.replace(direct, direct +
         '\ttszCaptureBaseline(t, filepath.Join("direct", opts.Subfolder, fileName), actual)\n')
     patched.write_text(modified)
+    harness = checkout / "internal/testutil/harnessutil/harnessutil.go"
+    source = harness.read_text()
+    boundary = "\tfs := vfstest.FromMap(testfs, harnessOptions.UseCaseSensitiveFileNames)\n"
+    if source.count(boundary) != 1:
+        raise ValueError("pinned compiler input capture anchor changed")
+    patched_harness = output / "harnessutil.go"
+    patched_harness.write_text(source.replace(boundary,
+        "\ttszCaptureCompilation(t, testfs, programFileNames, compilerOptions, harnessOptions, currentDirectory, tsconfig)\n"
+        + boundary))
     overlay = output / "overlay.json"
     overlay.write_text(json.dumps({"Replace": {
         str(baseline): str(patched),
         str(baseline.with_name("tsz_capture.go")): str(HERE / "capture.go"),
+        str(harness): str(patched_harness),
+        str(harness.with_name("tsz_capture_inputs.go")): str(HERE / "capture_inputs.go"),
     }}, indent=2) + "\n")
     return overlay
 
@@ -250,7 +263,9 @@ def oracle(checkout: Path, output: Path, packages: list[str], pattern: str, work
     if pattern:
         command += ["-run", pattern]
     command += packages or ["./..."]
-    env = dict(os.environ, TSZ_ORACLE_CAPTURE_DIR=str(products), CGO_ENABLED="0", TS_TEST_PROGRAM_SINGLE_THREADED="true")
+    inputs = output / "inputs"
+    env = dict(os.environ, TSZ_ORACLE_CAPTURE_DIR=str(products), TSZ_ORACLE_INPUT_DIR=str(inputs),
+               CGO_ENABLED="0", TS_TEST_PROGRAM_SINGLE_THREADED="true")
     with (output / "events.jsonl").open("w") as stdout, (output / "stderr.txt").open("w") as stderr:
         result = subprocess.run(command, cwd=checkout / pin["module"], env=env, stdout=stdout, stderr=stderr)
     with (output / "events.jsonl").open() as events:
@@ -260,9 +275,11 @@ def oracle(checkout: Path, output: Path, packages: list[str], pattern: str, work
         (output / f"tests-{start // 1000:04}.jsonl").write_text(
             "".join(json.dumps(row, sort_keys=True) + "\n" for row in leaves[start:start + 1000])
         )
+    input_capture = summarize_inputs(inputs)
     summary.update({
         "schema": 1, "oracle": pin, "command": command,
         "exit_status": result.returncode, "products": len(list(products.glob("*.json"))),
+        "compiler_invocations": input_capture["invocations"], "input_capture": input_capture,
         "scope": "filtered" if pattern or packages else "all-native-go-tests",
         "tsz_parity": "unmeasured",
         "capture": "reporting-only Go overlay; upstream comparisons unchanged",
