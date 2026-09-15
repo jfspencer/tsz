@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strings"
@@ -105,6 +106,17 @@ func tszCaptureCompilation(
 			t.Fatal(err)
 		}
 	}
+	tszCaptureOptionSchema(t, directory)
+	var callers []string
+	pcs := make([]uintptr, 32)
+	frames := runtime.CallersFrames(pcs[:runtime.Callers(2, pcs)])
+	for {
+		frame, more := frames.Next()
+		callers = append(callers, frame.Function)
+		if !more {
+			break
+		}
+	}
 	entries := make([]tszInputFile, 0, len(files))
 	for name, value := range files {
 		file, ok := value.(*fstest.MapFile)
@@ -138,7 +150,8 @@ func tszCaptureCompilation(
 		Harness          *HarnessOptions       `json:"native_harness_options"`
 		ConfigSource     *tszInputFile         `json:"config_source"`
 		ExtendedSources  []string              `json:"extended_config_paths"`
-	}{1, packageName, t.Name(), sequence, currentDirectory, bundled.LibPath(), roots, entries, options, harness, configSource, extendedSources}
+		Callers          []string              `json:"callers"`
+	}{1, packageName, t.Name(), sequence, currentDirectory, bundled.LibPath(), roots, entries, options, harness, configSource, extendedSources, callers}
 	data, err := json.Marshal(record)
 	if err != nil {
 		t.Fatal(err)

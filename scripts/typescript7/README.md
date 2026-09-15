@@ -82,6 +82,8 @@ without altering the native compilation or baseline comparison:
   are stored once. No UTF-8 decoding changes binary fixtures or line endings.
 - `summary.json.input_capture`: validated invocation/blob counts and a manifest
   hash covering every captured record and blob.
+- `inputs/options.json`: option kinds and enum values exported from the pinned
+  native declarations. Its bytes are included in the input manifest.
 
 Options use the pinned Go compiler's native JSON representation, including its
 numeric enums and distinct unset/false values. They are not a ready-to-use
@@ -95,6 +97,40 @@ outputs** when replaying such checks; it must not compile captured oracle emit
 as a substitute for its own emit. This is an input ledger, not a completed
 replay engine. Other native drivers, such as build/watch and language-service
 tests, still need their own adapters.
+
+## Candidate replay
+
+```bash
+scripts/safe-run.sh python3 scripts/typescript7/replay.py \
+  --oracle artifacts/typescript7/7.0.2-replay-inputs \
+  --candidate .target/release/tsz \
+  --output artifacts/typescript7/7.0.2-tsz-replay
+```
+
+Use a fresh oracle capture containing option metadata and native caller chains.
+The initial Linux adapter uses `bubblewrap` to retain absolute virtual paths,
+symlinks, root order, and original source bytes. The candidate and its runtime
+libraries are mounted read-only; `/proc` belongs to an isolated process namespace.
+It translates values through the captured native option declarations and never
+drops an unknown option to get the candidate to compile.
+
+Every captured invocation receives a result. Primary compiler fixtures run
+through TSZ's CLI; auxiliary calls that could consume oracle-generated output
+remain explicitly unsupported. Case-insensitive filesystems, parsed-config
+provenance, suggestion queries, and other native drivers still require adapters.
+The Linux process runtime also requires `/proc`; fixtures overlapping that mount
+are unsupported. Symlinked working directories are currently unsupported.
+
+Results retain process exit status, original stdout/stderr bytes, structured
+TSZ JSON when produced, new/changed files, and removed input paths. Timeouts
+terminate the process group and retain the observed partial products. A binary
+hash identifies the candidate, and the input manifest is checked before replay.
+
+This command deliberately exits 1 and reports `tsz_parity: unmeasured`: candidate
+execution is now available, but native baseline formatting and assertion replay
+are unfinished. In particular, native compiler tests collect diagnostic phases
+that the CLI may suppress; CLI observations cannot substitute for those native
+API products. A zero candidate exit is not a passing native test.
 
 ## Release-native limitations observed locally
 

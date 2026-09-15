@@ -9,6 +9,12 @@ import re
 def summarize_inputs(directory: Path) -> dict:
     blobs = {}
     manifest = []
+    option_schema = directory / "options.json"
+    if option_schema.exists():
+        content = option_schema.read_bytes()
+        if not isinstance(json.loads(content), dict):
+            raise ValueError("invalid native option schema")
+        manifest.append(["options.json", hashlib.sha256(content).hexdigest(), len(content)])
     for path in sorted((directory / "blobs").glob("*")):
         if not re.fullmatch(r"[0-9a-f]{64}", path.name) or not path.is_file():
             raise ValueError(f"invalid compiler input blob: {path}")

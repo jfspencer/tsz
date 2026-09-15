@@ -243,6 +243,7 @@ def make_overlay(checkout: Path, output: Path) -> Path:
         str(baseline.with_name("tsz_capture.go")): str(HERE / "capture.go"),
         str(harness): str(patched_harness),
         str(harness.with_name("tsz_capture_inputs.go")): str(HERE / "capture_inputs.go"),
+        str(harness.with_name("tsz_capture_options.go")): str(HERE / "capture_options.go"),
     }}, indent=2) + "\n")
     return overlay
 
