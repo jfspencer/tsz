@@ -26,6 +26,50 @@ remain available. This complete native suite includes products those adapters
 do not yet score: type/symbol displays, source-map records, resolution traces,
 native services, project/build/watch tests, and native unit tests.
 
+## Synchronize upstream tests
+
+```bash
+# First sync: all files are recorded as additions.
+scripts/safe-run.sh python3 scripts/typescript7/sync.py \
+  --corpus-source TypeScript --output artifacts/typescript7/sync-first
+
+# Subsequent sync: compare with a prior sync or inventory directory.
+scripts/safe-run.sh python3 scripts/typescript7/sync.py \
+  --previous artifacts/typescript7/sync-first \
+  --output artifacts/typescript7/sync-next
+```
+
+The sync unit is the **entire native repository plus its nested TypeScript
+corpus**, including tests, references, binary fixtures, symlinks, executable
+modes, libraries, tools, and setup files. There is no hand-maintained case list
+to update. Existing clean managed checkouts move to the exact locked commits;
+local dirty files, sparse inputs, inconsistent nested commits, and inconsistent
+active oracle pins stop the sync before it can claim success. Repeating a sync
+at the same release leaves checkout identities unchanged.
+
+Each fresh output directory contains:
+
+- `inventory/`: the complete sharded Git blob/path/mode inventory.
+- `changes-*.jsonl`: every added, removed, or modified file, with both identities.
+  Line-ending-only and executable-mode-only changes remain visible.
+- `sync-summary.json`: release identities, inventory/delta hashes, category
+  counts, and unchanged-file count.
+- `adapter-check/`: generated capture overlays proving that the expected
+  upstream hooks still exist. This checks anchors; run the native smoke below
+  to verify compilation and capture execution.
+
+`--previous` verifies the inventory hash, file count, ordering, duplicate paths,
+and categories before calculating changes. A missing or corrupted shard cannot
+produce a clean report. Sync never edits upstream reference baselines and never
+reports native or TSZ test passes.
+
+The selected release remains **7.0.2**. Sync does not select `latest`, advance a
+branch tip, or accept development versions. Moving to another production release
+requires an explicit, reviewed update of the active pins and their consistency
+checks; run this same sync workflow afterward, review its delta, then run the
+native smoke and candidate comparisons. Capture hooks that changed upstream
+must be ported before the sync check succeeds.
+
 ## Observe the release with its own harness
 
 ```bash
