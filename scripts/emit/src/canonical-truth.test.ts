@@ -281,6 +281,18 @@ try {
   process.env.FAKE_ORACLE_SCENARIO = 'exact';
   process.env.FAKE_TSZ_SCENARIO = 'exact';
   pair = freshPair();
+  for (const newLine of ['', 'lf', 'crlf']) {
+    fs.writeFileSync(invocationLog, '', 'utf8');
+    await Promise.all([
+      pair.oracle.transpile('', undefined, undefined, { ...baseOptions, newLine }),
+      pair.tsz.transpile('', undefined, undefined, { ...baseOptions, newLine }),
+    ]);
+    for (const invocation of invocations()) {
+      assert.equal(valueAfter(invocation.args, '--newLine'), newLine,
+        'explicit empty and enum values survive argv transport');
+    }
+  }
+  fs.writeFileSync(invocationLog, '', 'utf8');
   const resolvedInvocation = resolveAuthoredOptions({
     embeddedConfig: {
       strict: true,
@@ -291,6 +303,7 @@ try {
       noUnusedLocals: true,
       noUnusedParameters: false,
       skipLibCheck: true,
+      newLine: 'CRLF',
       strictPropertyInitialization: false,
     },
     directives: { strict: true },
@@ -307,6 +320,7 @@ try {
       noUnusedLocals: optionBoolean(resolvedInvocation, 'noUnusedLocals'),
       noUnusedParameters: optionBoolean(resolvedInvocation, 'noUnusedParameters'),
       skipLibCheck: optionBoolean(resolvedInvocation, 'skipLibCheck'),
+      newLine: optionString(resolvedInvocation, 'newLine'),
       strictPropertyInitialization: optionBoolean(resolvedInvocation, 'strictPropertyInitialization'),
     }),
     pair.tsz.transpile('', parseTarget(optionString(resolvedInvocation, 'target')!), undefined, {
@@ -319,6 +333,7 @@ try {
       noUnusedLocals: optionBoolean(resolvedInvocation, 'noUnusedLocals'),
       noUnusedParameters: optionBoolean(resolvedInvocation, 'noUnusedParameters'),
       skipLibCheck: optionBoolean(resolvedInvocation, 'skipLibCheck'),
+      newLine: optionString(resolvedInvocation, 'newLine'),
       strictPropertyInitialization: optionBoolean(resolvedInvocation, 'strictPropertyInitialization'),
     }),
   ]);
@@ -331,6 +346,7 @@ try {
     assert.equal(valueAfter(invocation.args, '--noUnusedLocals'), 'true');
     assert.equal(valueAfter(invocation.args, '--noUnusedParameters'), 'false');
     assert.equal(valueAfter(invocation.args, '--skipLibCheck'), 'true');
+    assert.equal(valueAfter(invocation.args, '--newLine'), 'CRLF');
     assert.equal(valueAfter(invocation.args, '--strictPropertyInitialization'), 'false');
     assert.equal(invocation.args.includes('--strictNullChecks'), false, 'strict is never approximated');
     assert.equal(valueAfter(invocation.args, '--target'), 'es2015');

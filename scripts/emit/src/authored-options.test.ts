@@ -201,3 +201,20 @@ assert.deepEqual(identicalEmbedded.reasons, []);
 assert.deepEqual(identicalEmbedded.compilerOptions, { strict: false, target: 'es2015' });
 
 console.log('emit-authored-options: precedence, config parsing, and unsupported accounting are exact');
+
+for (const value of ['', 'lf', 'LF', 'crlf', 'CRLF']) {
+  const options = resolveAuthoredOptions({
+    embeddedConfig: { newLine: 'lf' },
+    directives: { newline: 'crlf' },
+    variant: { base: 'case', newline: value },
+  });
+  assert.equal(optionString(options, 'newLine'), value);
+  assert.deepEqual(authoredOptionFailureReasons(options), []);
+}
+for (const value of [null, true, 1, ' CRLF ', 'lf,crlf', 'invalid']) {
+  const options = resolveAuthoredOptions({
+    embeddedConfig: { newLine: value }, directives: {}, variant: { base: 'case' },
+  });
+  assert.deepEqual(authoredOptionFailureReasons(options),
+    ['invalid-authored-option:newline(embedded-config)']);
+}

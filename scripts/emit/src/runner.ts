@@ -143,6 +143,7 @@ interface TestCase {
   noUnusedLocals?: boolean;
   noUnusedParameters?: boolean;
   skipLibCheck?: boolean;
+  newLine?: string;
   strictPropertyInitialization?: boolean;
   baseUrl?: string;
   outFile?: string;
@@ -436,6 +437,7 @@ async function findTestCases(filter: string, maxTests: number, dtsOnly: boolean)
     const noUnusedLocals = optionBoolean(authoredOptions, 'noUnusedLocals');
     const noUnusedParameters = optionBoolean(authoredOptions, 'noUnusedParameters');
     const skipLibCheck = optionBoolean(authoredOptions, 'skipLibCheck');
+    const newLine = optionString(authoredOptions, 'newLine');
     const strictPropertyInitialization = optionBoolean(authoredOptions, 'strictPropertyInitialization');
     const noImplicitReferences = optionBoolean(authoredOptions, 'noImplicitReferences');
     const baseUrl = optionString(authoredOptions, 'baseUrl');
@@ -535,6 +537,7 @@ async function findTestCases(filter: string, maxTests: number, dtsOnly: boolean)
       noUnusedLocals,
       noUnusedParameters,
       skipLibCheck,
+      newLine,
       strictPropertyInitialization,
       baseUrl,
       outFile,
@@ -644,6 +647,7 @@ async function runTest(
       noUnusedLocals: testCase.noUnusedLocals,
       noUnusedParameters: testCase.noUnusedParameters,
       skipLibCheck: testCase.skipLibCheck,
+      newLine: testCase.newLine,
       strictPropertyInitialization: testCase.strictPropertyInitialization,
       importHelpers: testCase.importHelpers,
       esModuleInterop: testCase.esModuleInterop,

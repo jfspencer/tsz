@@ -88,6 +88,7 @@ interface CompilerFlagOptions {
   noUnusedLocals?: boolean;
   noUnusedParameters?: boolean;
   skipLibCheck?: boolean;
+  newLine?: string;
   strictPropertyInitialization?: boolean;
   importHelpers?: boolean;
   esModuleInterop?: boolean;
@@ -149,6 +150,7 @@ function diagnosticApiCompilerOptions(
     noUnusedLocals: opts.noUnusedLocals,
     noUnusedParameters: opts.noUnusedParameters,
     skipLibCheck: opts.skipLibCheck,
+    newLine: opts.newLine,
     strictPropertyInitialization: opts.strictPropertyInitialization,
     importHelpers: opts.importHelpers,
     esModuleInterop: opts.esModuleInterop,
@@ -316,6 +318,7 @@ function appendCompilerOptionFlags(args: string[], opts: CompilerFlagOptions): v
   booleanFlag('--noUnusedLocals', opts.noUnusedLocals);
   booleanFlag('--noUnusedParameters', opts.noUnusedParameters);
   booleanFlag('--skipLibCheck', opts.skipLibCheck);
+  if (opts.newLine !== undefined) args.push('--newLine', opts.newLine);
   booleanFlag('--strictPropertyInitialization', opts.strictPropertyInitialization);
   booleanFlag('--importHelpers', opts.importHelpers);
   booleanFlag('--esModuleInterop', opts.esModuleInterop);
@@ -440,6 +443,7 @@ export class CliTranspiler {
       noUnusedLocals?: boolean;
       noUnusedParameters?: boolean;
       skipLibCheck?: boolean;
+      newLine?: string;
       strictPropertyInitialization?: boolean;
       importHelpers?: boolean;
       esModuleInterop?: boolean;
@@ -495,6 +499,7 @@ export class CliTranspiler {
       noUnusedLocals,
       noUnusedParameters,
       skipLibCheck,
+      newLine,
       strictPropertyInitialization,
       importHelpers,
       esModuleInterop,
@@ -721,6 +726,7 @@ export class CliTranspiler {
         noUnusedLocals,
         noUnusedParameters,
         skipLibCheck,
+        newLine,
         strictPropertyInitialization,
         importHelpers,
         esModuleInterop,
