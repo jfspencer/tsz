@@ -58,31 +58,22 @@ impl Printer<'_> {
             self.output.push_str(": ");
             self.output.push_str(&ty);
         }
-        self.output.push_str(";\n");
+        self.write_line(";");
         self.write_indent();
         self.output.push_str("export default ");
         self.output.push_str(&name);
-        self.output.push_str(";\n");
+        self.write_line(";");
     }
 
     fn default_export_name(&self, preferred: Option<&str>) -> String {
         let base = preferred.unwrap_or("_default");
-        if !self
-            .bindings
-            .scopes
-            .first()
-            .is_some_and(|scope| scope.names.contains_key(base))
-        {
-            return base.to_string();
-        }
-        (1..)
-            .map(|index| format!("{base}_{index}"))
+        std::iter::once(base.to_string())
+            .chain((1..).map(|index| format!("{base}_{index}")))
             .find(|candidate| {
-                !self
-                    .bindings
+                self.bindings
                     .scopes
                     .first()
-                    .is_some_and(|scope| scope.names.contains_key(candidate))
+                    .is_none_or(|scope| !scope.names.contains_key(candidate))
             })
             .expect("a finite declaration scope has a free generated name")
     }
@@ -117,14 +108,14 @@ impl Printer<'_> {
                     self.output.push(' ');
                     self.write_expression(expression, PREC_LOWEST);
                 }
-                self.output.push_str(";\n");
+                self.write_line(";");
             }
             StatementKind::If(control_flow) => self.write_javascript_if(control_flow),
             StatementKind::Switch(control_flow) => {
                 self.write_indent();
                 self.output.push_str("switch (");
                 self.write_expression(&control_flow.expression, PREC_LOWEST);
-                self.output.push_str(") {\n");
+                self.write_line(") {");
                 self.indent += 1;
                 for clause in &control_flow.clauses {
                     self.write_indent();
@@ -136,7 +127,7 @@ impl Printer<'_> {
                         }
                         SwitchClauseKind::Default => self.output.push_str("default:"),
                     }
-                    self.output.push('\n');
+                    self.write_line("");
                     self.indent += 1;
                     for nested in &clause.statements {
                         self.write_javascript_statement(nested, false);
@@ -145,7 +136,7 @@ impl Printer<'_> {
                 }
                 self.indent = self.indent.saturating_sub(1);
                 self.write_indent();
-                self.output.push_str("}\n");
+                self.write_line("}");
             }
             StatementKind::Break(jump) => {
                 self.write_jump_statement("break", jump.label.as_deref(), jump.label_span)
@@ -156,14 +147,14 @@ impl Printer<'_> {
             StatementKind::Block(statements) => {
                 self.write_indent();
                 self.write_braced_statements(Some(statement.span), statements);
-                self.output.push('\n');
+                self.write_line("");
             }
             StatementKind::Expression(expression) => {
                 self.write_commented_expression_statement(statement, expression)
             }
             StatementKind::Empty => {
                 self.write_indent();
-                self.output.push_str(";\n");
+                self.write_line(";");
             }
             StatementKind::TypeAlias(_) | StatementKind::Interface(_) | StatementKind::Unknown => {
                 unreachable!("not-emitted statement entered the JavaScript writer")
@@ -284,16 +275,14 @@ impl Printer<'_> {
                 label_span.expect("an authored jump label must retain its span"),
             );
         }
-        self.output.push_str(";\n");
+        self.write_line(";");
     }
 
     fn write_javascript_class(&mut self, declaration: &ClassDeclaration, top_level: bool) {
         self.write_indent();
         if top_level && declaration.exported && self.module_format == ModuleFormat::EsModule {
             self.output.push_str("export ");
-            if declaration.default_export {
-                self.output.push_str("default ");
-            }
+            self.write_token_if(declaration.default_export, "default ");
         }
         self.output.push_str("class");
         if top_level && declaration.exported && self.module_format == ModuleFormat::CommonJs {
@@ -308,7 +297,7 @@ impl Printer<'_> {
             self.output.push_str(" extends ");
             self.write_heritage_type(base);
         }
-        self.output.push_str(" {\n");
+        self.write_line(" {");
         self.indent += 1;
         let mut empty_index = 0;
         for member in &declaration.members {
@@ -338,7 +327,7 @@ impl Printer<'_> {
         }
         self.indent = self.indent.saturating_sub(1);
         self.write_indent();
-        self.output.push_str("}\n");
+        self.write_line("}");
         if top_level && declaration.exported && self.module_format == ModuleFormat::CommonJs {
             let export_name = if declaration.default_export {
                 "default"
@@ -353,7 +342,7 @@ impl Printer<'_> {
     fn write_javascript_empty_class_element(&mut self, span: crate::source::Span) {
         self.write_comments_before_node(span, true);
         self.write_indent();
-        self.output.push_str(";\n");
+        self.write_line(";");
         self.write_comments_after_node(span, true);
     }
 
@@ -380,9 +369,7 @@ impl Printer<'_> {
             self.write_parameter_property_fields(parameters);
         }
         self.write_indent();
-        if member.modifiers.static_member {
-            self.output.push_str("static ");
-        }
+        self.write_token_if(member.modifiers.static_member, "static ");
         match &member.kind {
             ClassMemberKind::Constructor {
                 parameters,
@@ -398,7 +385,7 @@ impl Printer<'_> {
                 } else {
                     self.write_function_body(*body_span, body);
                 }
-                self.output.push('\n');
+                self.write_line("");
             }
             ClassMemberKind::Property { initializer, .. } => {
                 self.write_property_name(&member.name, member.name_span, member.name_kind);
@@ -406,7 +393,7 @@ impl Printer<'_> {
                     self.output.push_str(" = ");
                     self.write_expression(initializer, super::PREC_ASSIGNMENT);
                 }
-                self.output.push_str(";\n");
+                self.write_line(";");
             }
             ClassMemberKind::Method {
                 parameters,
@@ -415,9 +402,7 @@ impl Printer<'_> {
                 accessor,
                 ..
             } => {
-                if member.modifiers.async_member {
-                    self.output.push_str("async ");
-                }
+                self.write_token_if(member.modifiers.async_member, "async ");
                 if let Some(accessor) = accessor {
                     self.output.push_str(match accessor {
                         AccessorKind::Get => "get ",
@@ -428,7 +413,7 @@ impl Printer<'_> {
                 self.write_runtime_parameters(parameters, true);
                 self.output.push(' ');
                 self.write_function_body(*body_span, body);
-                self.output.push('\n');
+                self.write_line("");
             }
         }
     }
@@ -447,7 +432,7 @@ impl Printer<'_> {
             self.indent = self.indent.saturating_sub(1);
             if self.output.len() == boundary {
                 if body_span.is_some_and(|span| !self.body_span_is_single_line(span)) {
-                    self.output.push('\n');
+                    self.write_line("");
                     self.write_indent();
                 } else {
                     self.output.push(' ');
@@ -460,7 +445,7 @@ impl Printer<'_> {
             self.output.push('}');
             return;
         }
-        self.output.push_str("{\n");
+        self.write_line("{");
         self.indent += 1;
         for statement in statements {
             self.write_javascript_statement(statement, false);

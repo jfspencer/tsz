@@ -5,8 +5,7 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 pub use tsz::config::CompilerOptionPatch;
 use tsz::config::{
-    CompilerOptionKey, ProjectRequest, ProjectSelection, TargetValueOutcome, classify_target_value,
-    find_config_file, resolve_project,
+    CompilerOptionKey, ProjectRequest, ProjectSelection, find_config_file, resolve_project,
 };
 use tsz::host::SystemHost;
 use tsz::{CompileOutput, Compiler, DeferredCompilerOption, SemanticCompletion};
@@ -82,12 +81,10 @@ pub fn parse_arguments(arguments: &[OsString]) -> Result<Invocation> {
             } else {
                 optional_bool(arguments, &mut index, inline_value, true).to_string()
             };
-            if key == CompilerOptionKey::Target {
+            if matches!(key, CompilerOptionKey::Target | CompilerOptionKey::NewLine) {
                 value = value.trim().to_string();
             }
-            if key == CompilerOptionKey::Target
-                && let TargetValueOutcome::Invalid { message, code } = classify_target_value(&value)
-            {
+            if let Some((code, message)) = key.invalid_value(&value) {
                 invocation
                     .command_line_diagnostics
                     .push((code, message.to_string()));

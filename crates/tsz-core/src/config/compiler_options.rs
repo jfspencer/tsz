@@ -147,12 +147,37 @@ option_schema! {
     SourceMap => source_map: bool, "sourceMap", bool;
     InlineSourceMap => inline_source_map: bool, "inlineSourceMap", bool;
     RemoveComments => remove_comments: bool, "removeComments", bool;
+    NewLine => new_line: String, "newLine", enum_string;
     UseDefineForClassFields => use_define_for_class_fields: bool, "useDefineForClassFields", bool;
     Target => target: String, "target", enum_string;
     Module => module: String, "module", enum_string;
     RootDir => root_dir: PathBuf, "rootDir", path;
     OutDir => out_dir: PathBuf, "outDir", path;
     DeclarationDir => declaration_dir: PathBuf, "declarationDir", path;
+}
+
+impl CompilerOptionKey {
+    /// Shared config/process validation for modeled enum option values.
+    #[must_use]
+    pub fn invalid_value(self, value: &str) -> Option<(u32, &'static str)> {
+        match self {
+            Self::Target => match classify_target_value(value) {
+                TargetValueOutcome::Invalid { message, code } => Some((code, message)),
+                _ => None,
+            },
+            Self::NewLine
+                if !["", "lf", "crlf"]
+                    .iter()
+                    .any(|kind| value.eq_ignore_ascii_case(kind)) =>
+            {
+                Some((
+                    6046,
+                    "Argument for '--newLine' option must be: 'crlf', 'lf'.",
+                ))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl CompilerOptionPatch {
@@ -326,11 +351,13 @@ pub(super) fn decode_compiler_options(
                 .authored_option_origins
                 .entry(key)
                 .or_insert_with(|| origin.clone());
-            if key == CompilerOptionKey::Target
-                && let Some(target) = occurrence.value.as_str()
-                && let TargetValueOutcome::Invalid { message, code } = classify_target_value(target)
+            if let Some(value) = occurrence.value.as_str()
+                && let Some((code, message)) = key.invalid_value(value)
             {
                 diagnostics.push(origin.diagnostic_at_value(message.to_string(), code));
+            } else if key == CompilerOptionKey::NewLine && occurrence.value.is_null() {
+                decoded.patch.new_line = Some(String::new());
+                decoded.option_origins.insert(key, origin);
             } else if decoded.patch.set_config(key, &occurrence.value, directory) {
                 decoded.option_origins.insert(key, origin);
             } else {

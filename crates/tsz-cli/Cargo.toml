@@ -58,5 +58,9 @@ path = "rewrite-tests/project_config.rs"
 name = "rewrite_emit_declaration_only"
 path = "rewrite-tests/emit_declaration_only.rs"
 
+[[test]]
+name = "rewrite_new_line"
+path = "rewrite-tests/new_line.rs"
+
 [lints]
 workspace = true

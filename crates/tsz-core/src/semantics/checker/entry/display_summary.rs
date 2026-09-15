@@ -721,7 +721,8 @@ impl Checker<'_> {
                 text.push_str("{}");
                 continue;
             }
-            text.push_str("{\n");
+            text.push('{');
+            text.push_str(self.options.new_line_text());
             for authored_name in &authored_properties {
                 let display_name = declaration_property_name(authored_name)?;
                 let property = shape
@@ -760,7 +761,8 @@ impl Checker<'_> {
                     };
                     text.push_str(&property_type);
                 }
-                text.push_str(";\n");
+                text.push(';');
+                text.push_str(self.options.new_line_text());
             }
             text.push_str(&"    ".repeat(depth));
             text.push('}');

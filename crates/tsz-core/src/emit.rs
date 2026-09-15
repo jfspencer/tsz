@@ -80,6 +80,7 @@ struct Printer<'a> {
     source: &'a SourceText,
     bindings: &'a BoundFile,
     output: String,
+    new_line: &'static str,
     indent: usize,
     module_format: ModuleFormat,
     implicit_external_module: bool,
@@ -108,6 +109,7 @@ impl<'a> Printer<'a> {
             source,
             bindings,
             output: String::new(),
+            new_line: options.new_line_text(),
             indent: 0,
             module_format: if is_effective_commonjs(&source.path, &options.module) {
                 ModuleFormat::CommonJs
@@ -155,17 +157,16 @@ impl<'a> Printer<'a> {
             directive_end = index + 1;
         }
         if (self.module_format == ModuleFormat::CommonJs || !external_module) && !strict {
-            self.output.push_str("\"use strict\";\n");
+            self.write_line("\"use strict\";");
         }
         self.comment_index
-            .reset(unit.comments(), self.preserve_comments, None);
+            .reset(unit.comments(), self.preserve_comments, false, None);
         self.write_detached_source_leading_comments(unit);
         for statement in &unit.statements[..directive_end] {
             self.write_javascript_statement(statement, true);
         }
         if external_module && self.module_format == ModuleFormat::CommonJs {
-            self.output
-                .push_str("Object.defineProperty(exports, \"__esModule\", { value: true });\n");
+            self.write_line("Object.defineProperty(exports, \"__esModule\", { value: true });");
             self.write_commonjs_declaration_prologue(unit);
         }
         for statement in &unit.statements[directive_end..] {
@@ -173,7 +174,7 @@ impl<'a> Printer<'a> {
         }
         self.finish_javascript_statements(unit);
         if external_module && !runtime_export && self.module_format == ModuleFormat::EsModule {
-            self.output.push_str("export {};\n");
+            self.write_line("export {};");
         }
     }
     fn emit_declarations(
@@ -185,6 +186,7 @@ impl<'a> Printer<'a> {
         self.comment_index.reset(
             unit.comments(),
             self.preserve_comments,
+            true,
             unit.source_check_directive.map(|directive| directive.span),
         );
         let (has_export, _) = statements::module_export_facts(&unit.statements);
@@ -198,7 +200,7 @@ impl<'a> Printer<'a> {
             self.write_declaration_comments_after_node(statement.span, emitted);
         }
         if self.implicit_external_module && !has_export {
-            self.output.push_str("export {};\n");
+            self.write_line("export {};");
         }
     }
     fn write_javascript_variable(&mut self, declaration: &VariableStatement, top_level: bool) {
@@ -207,11 +209,12 @@ impl<'a> Printer<'a> {
             return;
         }
         self.write_indent();
-        if top_level && declaration.exported && self.module_format == ModuleFormat::EsModule {
-            self.output.push_str("export ");
-        }
+        self.write_token_if(
+            top_level && declaration.exported && self.module_format == ModuleFormat::EsModule,
+            "export ",
+        );
         self.write_runtime_variable(declaration);
-        self.output.push('\n');
+        self.write_line("");
     }
     fn write_runtime_variable(&mut self, declaration: &VariableStatement) {
         let Some((first, rest)) = declaration.declarators.split_first() else {
@@ -260,7 +263,7 @@ impl<'a> Printer<'a> {
         let module = quote_string(&declaration.module_specifier);
         if declaration.side_effect_only {
             self.write_indent();
-            self.write_parts(&["require(", &module, ");\n"]);
+            self.write_parts(&["require(", &module, ");", self.new_line]);
             return;
         }
         for binding in declaration
@@ -275,7 +278,7 @@ impl<'a> Printer<'a> {
             if !binding.namespace {
                 self.write_parts(&[".", binding.imported.as_deref().unwrap_or("default")]);
             }
-            self.output.push_str(";\n");
+            self.write_line(";");
         }
     }
     fn write_esmodule_import(&mut self, declaration: &ImportDeclaration) {
@@ -283,7 +286,7 @@ impl<'a> Printer<'a> {
         self.output.push_str("import ");
         if declaration.side_effect_only {
             self.write_module_specifier(&declaration.module_specifier, declaration.module_span);
-            self.output.push_str(";\n");
+            self.write_line(";");
             return;
         }
         // The parser records the default clause first. A future syntax-model
@@ -314,20 +317,14 @@ impl<'a> Printer<'a> {
             wrote_clause = true;
         }
         if let Some(binding) = namespace_binding {
-            if wrote_clause {
-                self.output.push_str(", ");
-            }
+            self.write_token_if(wrote_clause, ", ");
             self.output.push_str("* as ");
             self.write_authored_identifier(&binding.local, binding.local_span);
         } else if !named_bindings.is_empty() {
-            if wrote_clause {
-                self.output.push_str(", ");
-            }
+            self.write_token_if(wrote_clause, ", ");
             self.output.push_str("{ ");
             for (index, binding) in named_bindings.iter().enumerate() {
-                if index != 0 {
-                    self.output.push_str(", ");
-                }
+                self.write_token_if(index != 0, ", ");
                 let imported = binding.imported.as_deref().unwrap_or(&binding.local);
                 if let Some(imported_span) = binding.imported_span {
                     self.write_authored_identifier(imported, imported_span);
@@ -346,7 +343,7 @@ impl<'a> Printer<'a> {
         }
         self.output.push_str(" from ");
         self.write_module_specifier(&declaration.module_specifier, declaration.module_span);
-        self.output.push_str(";\n");
+        self.write_line(";");
     }
     fn write_javascript_export(&mut self, _statement: &Statement, declaration: &ExportDeclaration) {
         if self.module_format == ModuleFormat::EsModule {
@@ -361,7 +358,7 @@ impl<'a> Printer<'a> {
                 "module.exports = "
             });
             self.write_expression(assignment, PREC_ASSIGNMENT);
-            self.output.push_str(";\n");
+            self.write_line(";");
             return;
         }
         if declaration.export_all {
@@ -370,7 +367,8 @@ impl<'a> Printer<'a> {
                 self.write_parts(&[
                     "Object.assign(exports, require(",
                     &quote_string(module),
-                    "));\n",
+                    "));",
+                    self.new_line,
                 ]);
             }
             return;
@@ -402,14 +400,15 @@ impl<'a> Printer<'a> {
                 } else {
                     self.output.push_str(&specifier.local);
                 }
-                self.output.push_str("; } });\n");
+                self.write_line("; } });");
             } else {
                 self.write_parts(&[
                     "exports.",
                     &specifier.exported,
                     " = ",
                     &specifier.local,
-                    ";\n",
+                    ";",
+                    self.new_line,
                 ]);
             }
         }
@@ -422,7 +421,7 @@ impl<'a> Printer<'a> {
             self.write_indent();
             self.output.push_str("export default ");
             self.write_expression(assignment, PREC_ASSIGNMENT);
-            self.output.push_str(";\n");
+            self.write_line(";");
             return;
         }
         self.write_indent();
@@ -444,9 +443,7 @@ impl<'a> Printer<'a> {
                 .iter()
                 .filter(|specifier| !specifier.type_only)
             {
-                if !first {
-                    self.output.push_str(", ");
-                }
+                self.write_token_if(!first, ", ");
                 first = false;
                 self.write_authored_identifier(&specifier.local, specifier.local_span);
                 if specifier.local_span != specifier.exported_span {
@@ -463,13 +460,13 @@ impl<'a> Printer<'a> {
             self.output.push_str(" from ");
             self.write_module_specifier(module, span);
         }
-        self.output.push_str(";\n");
+        self.write_line(";");
     }
     fn write_raw_statement(&mut self, statement: &Statement) {
         self.write_indent();
         self.output
             .push_str(self.source.slice(statement.span).trim());
-        self.output.push('\n');
+        self.write_line("");
     }
     fn write_module_specifier(&mut self, value: &str, span: Span) {
         let raw = self.source.slice(span).trim();
@@ -544,9 +541,7 @@ impl<'a> Printer<'a> {
         }
         let precedence = self.expression_precedence(expression);
         let parenthesize = precedence < parent_precedence;
-        if parenthesize {
-            self.output.push('(');
-        }
+        self.write_token_if(parenthesize, "(");
         match &expression.kind {
             ExpressionKind::Identifier {
                 name,
@@ -565,9 +560,10 @@ impl<'a> Printer<'a> {
                 }
             }
             ExpressionKind::This => self.output.push_str("this"),
-            ExpressionKind::Literal(literal) => self
-                .output
-                .push_str(&self.literal_text(literal, expression.span)),
+            ExpressionKind::Literal(literal) => self.output.push_str(&self.literal_text(
+                literal,
+                (!self.emitting_declaration()).then_some(expression.span),
+            )),
             ExpressionKind::Template(_) => unreachable!("unclaimed template emit"),
             ExpressionKind::RegularExpression(literal) => self.output.push_str(&literal.raw),
             ExpressionKind::Object(properties) => {
@@ -664,9 +660,7 @@ impl<'a> Printer<'a> {
             ExpressionKind::Conditional { .. } => self.write_conditional_expression(expression),
             ExpressionKind::Unary { operator, operand } => {
                 self.output.push_str(unary_operator_text(*operator));
-                if unary_operator_is_keyword(*operator) {
-                    self.output.push(' ');
-                }
+                self.write_token_if(unary_operator_is_keyword(*operator), " ");
                 self.write_expression(operand, PREC_UNARY);
             }
             ExpressionKind::Assignment {
@@ -697,9 +691,7 @@ impl<'a> Printer<'a> {
             }
             ExpressionKind::Missing => self.output.push_str("void 0"),
         }
-        if parenthesize {
-            self.output.push(')');
-        }
+        self.write_token_if(parenthesize, ")");
     }
     fn write_object_literal(&mut self, span: Span, properties: &[ObjectProperty]) {
         let multiline = properties
@@ -727,7 +719,7 @@ impl<'a> Printer<'a> {
             return;
         }
         if multiline {
-            self.output.push('\n');
+            self.write_line("");
             self.indent += 1;
         } else {
             self.output.push(' ');
@@ -745,11 +737,9 @@ impl<'a> Printer<'a> {
             self.write_object_property(property);
             let (comment_ended_line, _) = self.write_gap(End(property.span.end), true, Gap::None);
             if multiline {
-                if index + 1 < properties.len() || trailing_comma {
-                    self.output.push(',');
-                }
+                self.write_token_if(index + 1 < properties.len() || trailing_comma, ",");
                 if !comment_ended_line {
-                    self.output.push('\n');
+                    self.write_line("");
                 }
             } else if index + 1 == properties.len() && trailing_comma {
                 self.output.push(',');
@@ -769,9 +759,7 @@ impl<'a> Printer<'a> {
     }
     pub(super) fn write_expression_list(&mut self, expressions: &[Expression]) {
         for (index, expression) in expressions.iter().enumerate() {
-            if index != 0 {
-                self.output.push_str(", ");
-            }
+            self.write_token_if(index != 0, ", ");
             self.write_expression(expression, PREC_LOWEST);
         }
     }
@@ -782,7 +770,7 @@ impl<'a> Printer<'a> {
         self.write_type_parameters(&declaration.type_parameters);
         self.output.push_str(" = ");
         self.write_type(&declaration.ty, TYPE_PREC_LOWEST);
-        self.output.push_str(";\n");
+        self.write_line(";");
     }
     fn write_declaration_interface(&mut self, declaration: &InterfaceDeclaration) {
         self.write_indent();
@@ -796,7 +784,7 @@ impl<'a> Printer<'a> {
             self.output.push_str(" extends ");
             self.write_type_list(&declaration.extends, ", ", TYPE_PREC_LOWEST);
         }
-        self.output.push_str(" {\n");
+        self.write_line(" {");
         self.indent += 1;
         for member in declaration
             .members
@@ -805,25 +793,19 @@ impl<'a> Printer<'a> {
         {
             self.write_indent();
             self.write_type_member(member);
-            self.output.push('\n');
+            self.write_line("");
         }
         self.indent = self.indent.saturating_sub(1);
         self.write_indent();
-        self.output.push_str("}\n");
+        self.write_line("}");
     }
     fn write_declaration_parameters(&mut self, parameters: &[Parameter]) {
         self.output.push('(');
         for (index, parameter) in parameters.iter().enumerate() {
-            if index != 0 {
-                self.output.push_str(", ");
-            }
-            if parameter.rest {
-                self.output.push_str("...");
-            }
+            self.write_token_if(index != 0, ", ");
+            self.write_token_if(parameter.rest, "...");
             self.write_authored_identifier(&parameter.name, parameter.name_span);
-            if parameter.optional || parameter.initializer.is_some() {
-                self.output.push('?');
-            }
+            self.write_token_if(parameter.optional || parameter.initializer.is_some(), "?");
             self.output.push_str(": ");
             self.write_declaration_parameter_type(parameter);
             if self.declaration_parameter_property_host
@@ -844,9 +826,7 @@ impl<'a> Printer<'a> {
         }
         self.output.push('<');
         for (index, parameter) in parameters.iter().enumerate() {
-            if index != 0 {
-                self.output.push_str(", ");
-            }
+            self.write_token_if(index != 0, ", ");
             self.write_parts(&[
                 if parameter.const_parameter {
                     "const "
@@ -879,13 +859,11 @@ impl<'a> Printer<'a> {
     fn write_type(&mut self, ty: &TypeNode, parent_precedence: u8) {
         let precedence = type_precedence(ty);
         let parenthesize = precedence < parent_precedence;
-        if parenthesize {
-            self.output.push('(');
-        }
+        self.write_token_if(parenthesize, "(");
         match &ty.kind {
             TypeNodeKind::Keyword(keyword) => self.output.push_str(keyword_type_text(*keyword)),
             TypeNodeKind::Literal(literal) => {
-                let text = self.literal_text(literal, ty.span);
+                let text = self.literal_text(literal, Some(ty.span));
                 self.output.push_str(&text);
             }
             TypeNodeKind::Array(element) => {
@@ -909,12 +887,12 @@ impl<'a> Printer<'a> {
                             self.output.push(' ');
                         }
                     } else {
-                        self.output.push('\n');
+                        self.write_line("");
                         self.indent += 1;
                         for member in members.iter().filter(|member| !member.recovered) {
                             self.write_indent();
                             self.write_type_member(member);
-                            self.output.push('\n');
+                            self.write_line("");
                         }
                         self.indent = self.indent.saturating_sub(1);
                         self.write_indent();
@@ -940,9 +918,7 @@ impl<'a> Printer<'a> {
                 abstract_constructor,
                 ..
             } => {
-                if *abstract_constructor {
-                    self.output.push_str("abstract ");
-                }
+                self.write_token_if(*abstract_constructor, "abstract ");
                 self.output.push_str("new ");
                 self.write_type_parameters(type_parameters);
                 self.write_declaration_parameters(parameters);
@@ -982,9 +958,7 @@ impl<'a> Printer<'a> {
                 asserts,
                 ty,
             } => {
-                if *asserts {
-                    self.output.push_str("asserts ");
-                }
+                self.write_token_if(*asserts, "asserts ");
                 self.write_authored_identifier(parameter, *parameter_span);
                 if let Some(ty) = ty {
                     self.output.push_str(" is ");
@@ -1062,9 +1036,7 @@ impl<'a> Printer<'a> {
             }
             TypeNodeKind::Missing => self.output.push_str("unknown"),
         }
-        if parenthesize {
-            self.output.push(')');
-        }
+        self.write_token_if(parenthesize, ")");
     }
     fn write_type_list(&mut self, types: &[TypeNode], separator: &str, precedence: u8) {
         if types.is_empty() {
@@ -1125,15 +1097,22 @@ impl<'a> Printer<'a> {
             self.output.push_str("    ");
         }
     }
+    fn write_token_if(&mut self, condition: bool, text: &str) {
+        if condition {
+            self.output.push_str(text);
+        }
+    }
+    fn write_line(&mut self, text: &str) {
+        self.output.push_str(text);
+        self.output.push_str(self.new_line);
+    }
     fn write_newline(&mut self) {
         if !self.output.ends_with('\n') {
-            self.output.push('\n');
+            self.write_line("");
         }
     }
     fn write_parts(&mut self, parts: &[&str]) {
-        for part in parts {
-            self.output.push_str(part);
-        }
+        self.output.extend(parts.iter().copied());
     }
 }
 const TYPE_PREC_LOWEST: u8 = 0;

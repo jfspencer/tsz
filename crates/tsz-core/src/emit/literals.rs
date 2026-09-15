@@ -8,18 +8,16 @@ use crate::syntax::{
 use super::{Printer, TYPE_PREC_LOWEST, is_quoted, quote_string, variable_kind_text};
 
 impl Printer<'_> {
-    pub(super) fn literal_text(&self, literal: &Literal, span: Span) -> String {
+    pub(super) fn literal_text(&self, literal: &Literal, span: Option<Span>) -> String {
         match literal {
-            Literal::String(StringLiteral::Plain(value)) => {
-                let raw = self.source.slice(span).trim();
-                if is_quoted(raw) {
-                    raw.to_string()
-                } else {
-                    quote_string(value)
-                }
-            }
+            Literal::String(StringLiteral::Plain(value)) => span
+                .map(|span| self.source.slice(span).trim())
+                .filter(|raw| is_quoted(raw))
+                .map_or_else(|| quote_string(value), str::to_string),
             Literal::String(StringLiteral::Extended(literal)) => literal.raw.clone(),
-            Literal::NoSubstitutionTemplate(literal) => literal.raw.clone(),
+            Literal::NoSubstitutionTemplate(literal) => {
+                span.map_or_else(|| quote_string(&literal.cooked), |_| literal.raw.clone())
+            }
             Literal::Number(value) => value
                 .emit_text(self.preserve_numeric_separators && !self.emitting_declaration())
                 .to_string(),
@@ -41,20 +39,16 @@ impl Printer<'_> {
     }
     pub(super) fn write_declaration_variable(&mut self, declaration: &VariableStatement) {
         self.write_indent();
-        if declaration.exported {
-            self.output.push_str("export ");
-        }
+        self.write_token_if(declaration.exported, "export ");
         self.output.push_str("declare ");
         self.output
             .push_str(variable_kind_text(declaration.declaration_kind));
         self.output.push(' ');
         for (index, declarator) in declaration.declarators.iter().enumerate() {
-            if index != 0 {
-                self.output.push_str(", ");
-            }
+            self.write_token_if(index != 0, ", ");
             self.write_declaration_variable_declarator(declarator, declaration.declaration_kind);
         }
-        self.output.push_str(";\n");
+        self.write_line(";");
     }
     fn write_declaration_variable_declarator(
         &mut self,
@@ -72,16 +66,20 @@ impl Printer<'_> {
             VariableKind::Const,
             Some(Expression {
                 kind: ExpressionKind::Literal(literal),
-                span,
                 ..
             }),
-        ) = (declaration_kind, &declaration.initializer)
-        {
+        ) = (
+            declaration_kind,
+            declaration
+                .initializer
+                .as_ref()
+                .map(Expression::peel_parentheses),
+        ) {
             if matches!(literal, Literal::Null) {
                 self.output.push_str(": null");
             } else {
                 self.output.push_str(" = ");
-                let text = self.literal_text(literal, *span);
+                let text = self.literal_text(literal, None);
                 self.output.push_str(&text);
             }
         } else if !self.write_checked_declaration_type(declaration) {

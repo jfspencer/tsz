@@ -221,5 +221,9 @@ path = "rewrite-tests/emit_declaration_only.rs"
 name = "rewrite_inferred_object_declarations"
 path = "rewrite-tests/inferred_object_declarations.rs"
 
+[[test]]
+name = "rewrite_new_line"
+path = "rewrite-tests/new_line.rs"
+
 [lints]
 workspace = true

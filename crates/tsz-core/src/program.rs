@@ -182,6 +182,7 @@ compiler_options! {
     source_map: bool = false,
     inline_source_map: bool = false,
     remove_comments: bool = false,
+    new_line: String = "lf".to_string(),
     /// `None` uses the target-dependent TypeScript default.
     use_define_for_class_fields: Option<bool> = None,
     target: String = "es2025".to_string(),
@@ -192,6 +193,13 @@ compiler_options! {
     deferred_options: BTreeMap<DeferredCompilerOption, DeferredCompilerOptionValue> = BTreeMap::new(),
 }
 impl CompilerOptions {
+    pub(crate) fn new_line_text(&self) -> &'static str {
+        if self.new_line.eq_ignore_ascii_case("crlf") {
+            "\r\n"
+        } else {
+            "\n"
+        }
+    }
     pub(crate) fn requested_emit_targets(&self) -> impl Iterator<Item = CapabilityTarget> {
         (!self.emit_declaration_only)
             .then_some(CapabilityTarget::JavaScript)
@@ -797,6 +805,9 @@ fn compiler_option_diagnostics(
                 None => Diagnostic::global(message.to_string(), code),
             },
         ),
+    }
+    if let Some((code, message)) = Key::NewLine.invalid_value(&options.new_line) {
+        fatal_diagnostics.push(Diagnostic::global(message.to_string(), code));
     }
     let mut require = |primary: Key, secondary: Key, code, alternatives| {
         let message = format!(
