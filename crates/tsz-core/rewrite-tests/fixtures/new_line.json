@@ -1,0 +1,942 @@
+{
+  "oracle_version": "7.0.2",
+  "oracle_commit": "2bd066d87f5bafd315be9f40889d0a60b9e58e0b",
+  "cases": [
+    {
+      "name": "template_let_lf",
+      "source": "export let value = `a\nb`;\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let value: string;\n",
+        "case.js": "export let value = `a\nb`;\n"
+      }
+    },
+    {
+      "name": "template_let_crlf",
+      "source": "export let value = `a\nb`;\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let value: string;\r\n",
+        "case.js": "export let value = `a\nb`;\r\n"
+      }
+    },
+    {
+      "name": "template_let_CRLF",
+      "source": "export let value = `a\nb`;\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let value: string;\r\n",
+        "case.js": "export let value = `a\nb`;\r\n"
+      }
+    },
+    {
+      "name": "template_wrapped_lf",
+      "source": "export const value = (`a\nb`);\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = \"a\\nb\";\n",
+        "case.js": "export const value = (`a\nb`);\n"
+      }
+    },
+    {
+      "name": "template_wrapped_crlf",
+      "source": "export const value = (`a\nb`);\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = \"a\\nb\";\r\n",
+        "case.js": "export const value = (`a\nb`);\r\n"
+      }
+    },
+    {
+      "name": "template_wrapped_CRLF",
+      "source": "export const value = (`a\nb`);\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = \"a\\nb\";\r\n",
+        "case.js": "export const value = (`a\nb`);\r\n"
+      }
+    },
+    {
+      "name": "template_array_lf",
+      "source": "export const values = [`a\nb`];\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const values: string[];\n",
+        "case.js": "export const values = [`a\nb`];\n"
+      }
+    },
+    {
+      "name": "template_array_crlf",
+      "source": "export const values = [`a\nb`];\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const values: string[];\r\n",
+        "case.js": "export const values = [`a\nb`];\r\n"
+      }
+    },
+    {
+      "name": "template_array_CRLF",
+      "source": "export const values = [`a\nb`];\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const values: string[];\r\n",
+        "case.js": "export const values = [`a\nb`];\r\n"
+      }
+    },
+    {
+      "name": "template_object_lf",
+      "source": "export const outer = { inner: { value: `a\nb` } };\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const outer: {\n    inner: {\n        value: string;\n    };\n};\n",
+        "case.js": "export const outer = { inner: { value: `a\nb` } };\n"
+      }
+    },
+    {
+      "name": "template_object_crlf",
+      "source": "export const outer = { inner: { value: `a\nb` } };\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const outer: {\r\n    inner: {\r\n        value: string;\r\n    };\r\n};\r\n",
+        "case.js": "export const outer = { inner: { value: `a\nb` } };\r\n"
+      }
+    },
+    {
+      "name": "template_object_CRLF",
+      "source": "export const outer = { inner: { value: `a\nb` } };\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const outer: {\r\n    inner: {\r\n        value: string;\r\n    };\r\n};\r\n",
+        "case.js": "export const outer = { inner: { value: `a\nb` } };\r\n"
+      }
+    },
+    {
+      "name": "template_parameter_lf",
+      "source": "export function f(value = `a\nb`): void {}\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value?: string): void;\n",
+        "case.js": "export function f(value = `a\nb`) { }\n"
+      }
+    },
+    {
+      "name": "template_parameter_crlf",
+      "source": "export function f(value = `a\nb`): void {}\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value?: string): void;\r\n",
+        "case.js": "export function f(value = `a\nb`) { }\r\n"
+      }
+    },
+    {
+      "name": "template_parameter_CRLF",
+      "source": "export function f(value = `a\nb`): void {}\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value?: string): void;\r\n",
+        "case.js": "export function f(value = `a\nb`) { }\r\n"
+      }
+    },
+    {
+      "name": "template_default_lf",
+      "source": "export default `a\nb`;\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "declare const _default = \"a\\nb\";\nexport default _default;\n",
+        "case.js": "export default `a\nb`;\n"
+      }
+    },
+    {
+      "name": "template_default_crlf",
+      "source": "export default `a\nb`;\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "declare const _default = \"a\\nb\";\r\nexport default _default;\r\n",
+        "case.js": "export default `a\nb`;\r\n"
+      }
+    },
+    {
+      "name": "template_default_CRLF",
+      "source": "export default `a\nb`;\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "declare const _default = \"a\\nb\";\r\nexport default _default;\r\n",
+        "case.js": "export default `a\nb`;\r\n"
+      }
+    },
+    {
+      "name": "string_cooked_lf",
+      "source": "export const value = '\\x41\\n';",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = \"A\\n\";\n",
+        "case.js": "export const value = '\\x41\\n';\n"
+      }
+    },
+    {
+      "name": "string_cooked_crlf",
+      "source": "export const value = '\\x41\\n';",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = \"A\\n\";\r\n",
+        "case.js": "export const value = '\\x41\\n';\r\n"
+      }
+    },
+    {
+      "name": "string_cooked_CRLF",
+      "source": "export const value = '\\x41\\n';",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = \"A\\n\";\r\n",
+        "case.js": "export const value = '\\x41\\n';\r\n"
+      }
+    },
+    {
+      "name": "authored_type_lf",
+      "source": "export type T = 'a\\n'; export let value: T = 'a\\n';",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export type T = 'a\\n';\nexport declare let value: T;\n",
+        "case.js": "export let value = 'a\\n';\n"
+      }
+    },
+    {
+      "name": "authored_type_crlf",
+      "source": "export type T = 'a\\n'; export let value: T = 'a\\n';",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export type T = 'a\\n';\r\nexport declare let value: T;\r\n",
+        "case.js": "export let value = 'a\\n';\r\n"
+      }
+    },
+    {
+      "name": "authored_type_CRLF",
+      "source": "export type T = 'a\\n'; export let value: T = 'a\\n';",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export type T = 'a\\n';\r\nexport declare let value: T;\r\n",
+        "case.js": "export let value = 'a\\n';\r\n"
+      }
+    },
+    {
+      "name": "variable_lf",
+      "source": "export let value: number = 1;\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let value: number;\n",
+        "case.js": "export let value = 1;\n"
+      }
+    },
+    {
+      "name": "variable_crlf",
+      "source": "export let value: number = 1;\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let value: number;\r\n",
+        "case.js": "export let value = 1;\r\n"
+      }
+    },
+    {
+      "name": "variable_CRLF",
+      "source": "export let value: number = 1;\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let value: number;\r\n",
+        "case.js": "export let value = 1;\r\n"
+      }
+    },
+    {
+      "name": "renamed_lf",
+      "source": "export let item: string = \"text\";\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let item: string;\n",
+        "case.js": "export let item = \"text\";\n"
+      }
+    },
+    {
+      "name": "renamed_crlf",
+      "source": "export let item: string = \"text\";\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let item: string;\r\n",
+        "case.js": "export let item = \"text\";\r\n"
+      }
+    },
+    {
+      "name": "renamed_CRLF",
+      "source": "export let item: string = \"text\";\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare let item: string;\r\n",
+        "case.js": "export let item = \"text\";\r\n"
+      }
+    },
+    {
+      "name": "function_lf",
+      "source": "export function f(value: number): number { return value; }\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): number;\n",
+        "case.js": "export function f(value) { return value; }\n"
+      }
+    },
+    {
+      "name": "function_crlf",
+      "source": "export function f(value: number): number { return value; }\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): number;\r\n",
+        "case.js": "export function f(value) { return value; }\r\n"
+      }
+    },
+    {
+      "name": "function_CRLF",
+      "source": "export function f(value: number): number { return value; }\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): number;\r\n",
+        "case.js": "export function f(value) { return value; }\r\n"
+      }
+    },
+    {
+      "name": "interface_lf",
+      "source": "export interface I { value: number; use(item: string): void; }\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export interface I {\n    value: number;\n    use(item: string): void;\n}\n",
+        "case.js": "export {};\n"
+      }
+    },
+    {
+      "name": "interface_crlf",
+      "source": "export interface I { value: number; use(item: string): void; }\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export interface I {\r\n    value: number;\r\n    use(item: string): void;\r\n}\r\n",
+        "case.js": "export {};\r\n"
+      }
+    },
+    {
+      "name": "interface_CRLF",
+      "source": "export interface I { value: number; use(item: string): void; }\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export interface I {\r\n    value: number;\r\n    use(item: string): void;\r\n}\r\n",
+        "case.js": "export {};\r\n"
+      }
+    },
+    {
+      "name": "object_lf",
+      "source": "export const box = { value: 1, nested: { name: \"x\" }, use(item: string) {} };\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const box: {\n    value: number;\n    nested: {\n        name: string;\n    };\n    use(item: string): void;\n};\n",
+        "case.js": "export const box = { value: 1, nested: { name: \"x\" }, use(item) { } };\n"
+      }
+    },
+    {
+      "name": "object_crlf",
+      "source": "export const box = { value: 1, nested: { name: \"x\" }, use(item: string) {} };\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const box: {\r\n    value: number;\r\n    nested: {\r\n        name: string;\r\n    };\r\n    use(item: string): void;\r\n};\r\n",
+        "case.js": "export const box = { value: 1, nested: { name: \"x\" }, use(item) { } };\r\n"
+      }
+    },
+    {
+      "name": "object_CRLF",
+      "source": "export const box = { value: 1, nested: { name: \"x\" }, use(item: string) {} };\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const box: {\r\n    value: number;\r\n    nested: {\r\n        name: string;\r\n    };\r\n    use(item: string): void;\r\n};\r\n",
+        "case.js": "export const box = { value: 1, nested: { name: \"x\" }, use(item) { } };\r\n"
+      }
+    },
+    {
+      "name": "array_lf",
+      "source": "export const boxes = [{ use(value: number) {} }, { name: \"a\" }];\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const boxes: ({\n    use(value: number): void;\n    name?: undefined;\n} | {\n    use?: undefined;\n    name: string;\n})[];\n",
+        "case.js": "export const boxes = [{ use(value) { } }, { name: \"a\" }];\n"
+      }
+    },
+    {
+      "name": "array_crlf",
+      "source": "export const boxes = [{ use(value: number) {} }, { name: \"a\" }];\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const boxes: ({\r\n    use(value: number): void;\r\n    name?: undefined;\r\n} | {\r\n    use?: undefined;\r\n    name: string;\r\n})[];\r\n",
+        "case.js": "export const boxes = [{ use(value) { } }, { name: \"a\" }];\r\n"
+      }
+    },
+    {
+      "name": "array_CRLF",
+      "source": "export const boxes = [{ use(value: number) {} }, { name: \"a\" }];\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const boxes: ({\r\n    use(value: number): void;\r\n    name?: undefined;\r\n} | {\r\n    use?: undefined;\r\n    name: string;\r\n})[];\r\n",
+        "case.js": "export const boxes = [{ use(value) { } }, { name: \"a\" }];\r\n"
+      }
+    },
+    {
+      "name": "class_lf",
+      "source": "export class Box { value: number = 1; use(item: string): void {} }\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare class Box {\n    value: number;\n    use(item: string): void;\n}\n",
+        "case.js": "export class Box {\n    value = 1;\n    use(item) { }\n}\n"
+      }
+    },
+    {
+      "name": "class_crlf",
+      "source": "export class Box { value: number = 1; use(item: string): void {} }\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare class Box {\r\n    value: number;\r\n    use(item: string): void;\r\n}\r\n",
+        "case.js": "export class Box {\r\n    value = 1;\r\n    use(item) { }\r\n}\r\n"
+      }
+    },
+    {
+      "name": "class_CRLF",
+      "source": "export class Box { value: number = 1; use(item: string): void {} }\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare class Box {\r\n    value: number;\r\n    use(item: string): void;\r\n}\r\n",
+        "case.js": "export class Box {\r\n    value = 1;\r\n    use(item) { }\r\n}\r\n"
+      }
+    },
+    {
+      "name": "comments_lf",
+      "source": "/**\n * Docs\n */\nexport let value: number = 1; // tail\n/* end */",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/**\n * Docs\n */\nexport declare let value: number;\n",
+        "case.js": "/**\n * Docs\n */\nexport let value = 1; // tail\n/* end */ \n"
+      }
+    },
+    {
+      "name": "comments_crlf",
+      "source": "/**\n * Docs\n */\nexport let value: number = 1; // tail\n/* end */",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/**\r\n * Docs\r\n */\r\nexport declare let value: number;\r\n",
+        "case.js": "/**\r\n * Docs\r\n */\r\nexport let value = 1; // tail\r\n/* end */ \r\n"
+      }
+    },
+    {
+      "name": "comments_CRLF",
+      "source": "/**\n * Docs\n */\nexport let value: number = 1; // tail\n/* end */",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/**\r\n * Docs\r\n */\r\nexport declare let value: number;\r\n",
+        "case.js": "/**\r\n * Docs\r\n */\r\nexport let value = 1; // tail\r\n/* end */ \r\n"
+      }
+    },
+    {
+      "name": "comments_crlf_lf",
+      "source": "/**\r\n * Docs\r\n */\r\nexport let renamed: number = 1; // tail\r\n/* end */",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/**\n * Docs\n */\nexport declare let renamed: number;\n",
+        "case.js": "/**\n * Docs\n */\nexport let renamed = 1; // tail\n/* end */ \n"
+      }
+    },
+    {
+      "name": "comments_crlf_crlf",
+      "source": "/**\r\n * Docs\r\n */\r\nexport let renamed: number = 1; // tail\r\n/* end */",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/**\r\n * Docs\r\n */\r\nexport declare let renamed: number;\r\n",
+        "case.js": "/**\r\n * Docs\r\n */\r\nexport let renamed = 1; // tail\r\n/* end */ \r\n"
+      }
+    },
+    {
+      "name": "comments_crlf_CRLF",
+      "source": "/**\r\n * Docs\r\n */\r\nexport let renamed: number = 1; // tail\r\n/* end */",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/**\r\n * Docs\r\n */\r\nexport declare let renamed: number;\r\n",
+        "case.js": "/**\r\n * Docs\r\n */\r\nexport let renamed = 1; // tail\r\n/* end */ \r\n"
+      }
+    },
+    {
+      "name": "comments_cr_lf",
+      "source": "/* first\r second */\rexport const value = 1;\r",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\n",
+        "case.js": "/* first\n second */\nexport const value = 1;\n"
+      }
+    },
+    {
+      "name": "comments_cr_crlf",
+      "source": "/* first\r second */\rexport const value = 1;\r",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\r\n",
+        "case.js": "/* first\r\n second */\r\nexport const value = 1;\r\n"
+      }
+    },
+    {
+      "name": "comments_cr_CRLF",
+      "source": "/* first\r second */\rexport const value = 1;\r",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\r\n",
+        "case.js": "/* first\r\n second */\r\nexport const value = 1;\r\n"
+      }
+    },
+    {
+      "name": "comments_unicode_lf",
+      "source": "/* first\u2028 second\u2029 third */\nexport const value = 1;\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\n",
+        "case.js": "/* first\n second\n third */\nexport const value = 1;\n"
+      }
+    },
+    {
+      "name": "comments_unicode_crlf",
+      "source": "/* first\u2028 second\u2029 third */\nexport const value = 1;\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\r\n",
+        "case.js": "/* first\r\n second\r\n third */\r\nexport const value = 1;\r\n"
+      }
+    },
+    {
+      "name": "comments_unicode_CRLF",
+      "source": "/* first\u2028 second\u2029 third */\nexport const value = 1;\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\r\n",
+        "case.js": "/* first\r\n second\r\n third */\r\nexport const value = 1;\r\n"
+      }
+    },
+    {
+      "name": "literal_lf_lf",
+      "source": "export const text = `a\nb`;\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"a\\nb\";\n",
+        "case.js": "export const text = `a\nb`;\n"
+      }
+    },
+    {
+      "name": "literal_lf_crlf",
+      "source": "export const text = `a\nb`;\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"a\\nb\";\r\n",
+        "case.js": "export const text = `a\nb`;\r\n"
+      }
+    },
+    {
+      "name": "literal_lf_CRLF",
+      "source": "export const text = `a\nb`;\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"a\\nb\";\r\n",
+        "case.js": "export const text = `a\nb`;\r\n"
+      }
+    },
+    {
+      "name": "literal_crlf_lf",
+      "source": "export const text = `a\r\nb`;\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"a\\nb\";\n",
+        "case.js": "export const text = `a\r\nb`;\n"
+      }
+    },
+    {
+      "name": "literal_crlf_crlf",
+      "source": "export const text = `a\r\nb`;\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"a\\nb\";\r\n",
+        "case.js": "export const text = `a\r\nb`;\r\n"
+      }
+    },
+    {
+      "name": "literal_crlf_CRLF",
+      "source": "export const text = `a\r\nb`;\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"a\\nb\";\r\n",
+        "case.js": "export const text = `a\r\nb`;\r\n"
+      }
+    },
+    {
+      "name": "escaped_string_lf",
+      "source": "export const text = \"a\\\nb\";\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"ab\";\n",
+        "case.js": "export const text = \"a\\\nb\";\n"
+      }
+    },
+    {
+      "name": "escaped_string_crlf",
+      "source": "export const text = \"a\\\nb\";\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"ab\";\r\n",
+        "case.js": "export const text = \"a\\\nb\";\r\n"
+      }
+    },
+    {
+      "name": "escaped_string_CRLF",
+      "source": "export const text = \"a\\\nb\";\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const text = \"ab\";\r\n",
+        "case.js": "export const text = \"a\\\nb\";\r\n"
+      }
+    },
+    {
+      "name": "commonjs_lf",
+      "source": "export const value = 1;\nexport function use(item: number): number { return item; }\n",
+      "new_line": "lf",
+      "module": "commonjs",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\nexport declare function use(item: number): number;\n",
+        "case.js": "\"use strict\";\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.value = void 0;\nexports.use = use;\nexports.value = 1;\nfunction use(item) { return item; }\n"
+      }
+    },
+    {
+      "name": "commonjs_crlf",
+      "source": "export const value = 1;\nexport function use(item: number): number { return item; }\n",
+      "new_line": "crlf",
+      "module": "commonjs",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\r\nexport declare function use(item: number): number;\r\n",
+        "case.js": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nexports.value = void 0;\r\nexports.use = use;\r\nexports.value = 1;\r\nfunction use(item) { return item; }\r\n"
+      }
+    },
+    {
+      "name": "commonjs_CRLF",
+      "source": "export const value = 1;\nexport function use(item: number): number { return item; }\n",
+      "new_line": "CRLF",
+      "module": "commonjs",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare const value = 1;\r\nexport declare function use(item: number): number;\r\n",
+        "case.js": "\"use strict\";\r\nObject.defineProperty(exports, \"__esModule\", { value: true });\r\nexports.value = void 0;\r\nexports.use = use;\r\nexports.value = 1;\r\nfunction use(item) { return item; }\r\n"
+      }
+    },
+    {
+      "name": "ambient_lf",
+      "source": "export declare function f(value: number): void;\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): void;\n",
+        "case.js": "export {};\n"
+      }
+    },
+    {
+      "name": "ambient_crlf",
+      "source": "export declare function f(value: number): void;\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): void;\r\n",
+        "case.js": "export {};\r\n"
+      }
+    },
+    {
+      "name": "ambient_CRLF",
+      "source": "export declare function f(value: number): void;\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): void;\r\n",
+        "case.js": "export {};\r\n"
+      }
+    },
+    {
+      "name": "control_flow_lf",
+      "source": "export function f(value: number): number { if (value) { return 1; } else { return 2; } }\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): number;\n",
+        "case.js": "export function f(value) { if (value) {\n    return 1;\n}\nelse {\n    return 2;\n} }\n"
+      }
+    },
+    {
+      "name": "control_flow_crlf",
+      "source": "export function f(value: number): number { if (value) { return 1; } else { return 2; } }\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): number;\r\n",
+        "case.js": "export function f(value) { if (value) {\r\n    return 1;\r\n}\r\nelse {\r\n    return 2;\r\n} }\r\n"
+      }
+    },
+    {
+      "name": "control_flow_CRLF",
+      "source": "export function f(value: number): number { if (value) { return 1; } else { return 2; } }\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "export declare function f(value: number): number;\r\n",
+        "case.js": "export function f(value) { if (value) {\r\n    return 1;\r\n}\r\nelse {\r\n    return 2;\r\n} }\r\n"
+      }
+    },
+    {
+      "name": "preserved_reference_lf",
+      "source": "/// <reference lib=\"es2022\" preserve=\"true\" />\nexport interface Box { value: number; }\n",
+      "new_line": "lf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/// <reference lib=\"es2022\" preserve=\"true\" />\nexport interface Box {\n    value: number;\n}\n",
+        "case.js": "/// <reference lib=\"es2022\" preserve=\"true\" />\nexport {};\n"
+      }
+    },
+    {
+      "name": "preserved_reference_crlf",
+      "source": "/// <reference lib=\"es2022\" preserve=\"true\" />\nexport interface Box { value: number; }\n",
+      "new_line": "crlf",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/// <reference lib=\"es2022\" preserve=\"true\" />\r\nexport interface Box {\r\n    value: number;\r\n}\r\n",
+        "case.js": "/// <reference lib=\"es2022\" preserve=\"true\" />\r\nexport {};\r\n"
+      }
+    },
+    {
+      "name": "preserved_reference_CRLF",
+      "source": "/// <reference lib=\"es2022\" preserve=\"true\" />\nexport interface Box { value: number; }\n",
+      "new_line": "CRLF",
+      "module": "esnext",
+      "exit": 0,
+      "stdout": "",
+      "products": {
+        "case.d.ts": "/// <reference lib=\"es2022\" preserve=\"true\" />\r\nexport interface Box {\r\n    value: number;\r\n}\r\n",
+        "case.js": "/// <reference lib=\"es2022\" preserve=\"true\" />\r\nexport {};\r\n"
+      }
+    }
+  ]
+}

@@ -20,14 +20,18 @@ impl CommentIndex {
         &mut self,
         comments: &[CommentTrivia],
         preserve_comments: bool,
+        declaration: bool,
         omitted: Option<Span>,
     ) {
         self.comments = comments
             .iter()
             .copied()
             .filter(|comment| {
+                let pinned = matches!(comment.class, Pinned | DetachedPinned);
+                let reference = comment.class == TripleSlashReference;
                 Some(comment.span) != omitted
-                    && (preserve_comments || matches!(comment.class, Pinned | DetachedPinned))
+                    && (!declaration || pinned || comment.jsdoc || reference)
+                    && (preserve_comments || pinned)
             })
             .collect();
         self.next = 0;
@@ -115,7 +119,7 @@ impl Printer<'_> {
             // Pinned TypeScript's printer terminates a final block-comment
             // token with its ordinary separator even when the source ends at
             // `*/`. This is observable output, not retained source trivia.
-            self.output.push_str(" \n");
+            self.write_line(" ");
         }
     }
     pub(super) fn write_declaration_comments_before_node(&mut self, span: Span, emitted: bool) {
@@ -244,7 +248,7 @@ impl Printer<'_> {
                 GapSeparator::Indent,
             );
         }
-        self.output.push_str(";\n");
+        self.write_line(";");
     }
 
     fn write_node_trailing_comments(&mut self, comments: &[CommentTrivia]) {
@@ -253,11 +257,12 @@ impl Printer<'_> {
         }
         let restore_line_break = self.output.ends_with('\n');
         if restore_line_break {
-            self.output.pop();
+            self.output
+                .truncate(self.output.len() - self.new_line.len());
         }
         self.write_comment_sequence(comments, false, false);
         if restore_line_break && !self.output.ends_with('\n') {
-            self.output.push('\n');
+            self.write_line("");
         }
     }
 
@@ -275,7 +280,7 @@ impl Printer<'_> {
                 && !self.output.is_empty()
                 && !self.output.ends_with('\n')
             {
-                self.output.push('\n');
+                self.write_line("");
             } else if comment.placement == CommentPlacement::Trailing
                 && !self.output.chars().last().is_some_and(char::is_whitespace)
             {
@@ -284,14 +289,23 @@ impl Printer<'_> {
             if indent_at_line_start && self.output.ends_with('\n') {
                 self.write_indent();
             }
-            self.output
-                .push_str(&self.source.slice(comment.span).replace("\r\n", "\n"));
+            let mut characters = self.source.slice(comment.span).chars().peekable();
+            while let Some(character) = characters.next() {
+                if character == '\r' && characters.peek() == Some(&'\n') {
+                    characters.next();
+                }
+                if matches!(character, '\r' | '\n' | '\u{2028}' | '\u{2029}') {
+                    self.write_line("");
+                } else {
+                    self.output.push(character);
+                }
+            }
             if comment.kind == CommentKind::Line
                 || comment.has_trailing_line_break
                     && (comment.placement == CommentPlacement::Leading || !followed_by_token)
             {
                 if !self.output.ends_with('\n') {
-                    self.output.push('\n');
+                    self.write_line("");
                 }
             } else if comment.kind == CommentKind::Block
                 && (followed_by_token || index + 1 < comments.len())

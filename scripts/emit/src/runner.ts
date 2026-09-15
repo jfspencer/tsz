@@ -34,6 +34,7 @@ import {
 } from './canonical-products.js';
 import { detailRowsFingerprint, invocationEvidence, type InvocationEvidence } from './result-evidence.js';
 import { resolvePinnedOracle } from './oracle.js';
+import { COMPILER_SCOPE, compilerPathMode } from './process-paths.js';
 import {
   canonicalUnsupportedReasons,
   hasEmitSidecar,
@@ -143,6 +144,7 @@ interface TestCase {
   noUnusedLocals?: boolean;
   noUnusedParameters?: boolean;
   skipLibCheck?: boolean;
+  newLine?: string;
   strictPropertyInitialization?: boolean;
   baseUrl?: string;
   outFile?: string;
@@ -436,6 +438,7 @@ async function findTestCases(filter: string, maxTests: number, dtsOnly: boolean)
     const noUnusedLocals = optionBoolean(authoredOptions, 'noUnusedLocals');
     const noUnusedParameters = optionBoolean(authoredOptions, 'noUnusedParameters');
     const skipLibCheck = optionBoolean(authoredOptions, 'skipLibCheck');
+    const newLine = optionString(authoredOptions, 'newLine');
     const strictPropertyInitialization = optionBoolean(authoredOptions, 'strictPropertyInitialization');
     const noImplicitReferences = optionBoolean(authoredOptions, 'noImplicitReferences');
     const baseUrl = optionString(authoredOptions, 'baseUrl');
@@ -535,6 +538,7 @@ async function findTestCases(filter: string, maxTests: number, dtsOnly: boolean)
       noUnusedLocals,
       noUnusedParameters,
       skipLibCheck,
+      newLine,
       strictPropertyInitialization,
       baseUrl,
       outFile,
@@ -644,6 +648,7 @@ async function runTest(
       noUnusedLocals: testCase.noUnusedLocals,
       noUnusedParameters: testCase.noUnusedParameters,
       skipLibCheck: testCase.skipLibCheck,
+      newLine: testCase.newLine,
       strictPropertyInitialization: testCase.strictPropertyInitialization,
       importHelpers: testCase.importHelpers,
       esModuleInterop: testCase.esModuleInterop,
@@ -1130,6 +1135,7 @@ async function main() {
       timestamp: new Date().toISOString(),
       ...(gitSha ? { git_sha: gitSha } : {}),
       oracle: oracle.provenance,
+      compilerPaths: { adapter: compilerPathMode, scope: compilerPathMode === 'host' ? null : COMPILER_SCOPE },
       detailFingerprint: detailRowsFingerprint(allResults),
       detailResultCount: allResults.length,
       summary: {

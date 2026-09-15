@@ -6,11 +6,10 @@
 # 2. Tests for the crates this push actually touches. pre-commit already ran
 #    clippy + the arch guard per commit; this covers the push as a whole.
 #    Guarded by a free-space check because a debug workspace build is ~104GB.
-# 3. Schedules artifact cleanup after push completes.
 #
 # Env vars:
 #   TSZ_SKIP_HOOKS=1         Skip the entire hook
-#   TSZ_SKIP_PUSH_TESTS=1    Skip pre-push tests (only cleanup)
+#   TSZ_SKIP_PUSH_TESTS=1    Skip pre-push tests
 #   TSZ_FORCE_PUSH_TESTS=1   (retired; the gate is now scoped by diff)
 
 set -e
@@ -20,7 +19,6 @@ if [ "${TSZ_SKIP_HOOKS:-}" = "1" ]; then exit 0; fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../../" && pwd)"
-CLEAN_SCRIPT="$SCRIPT_DIR/../setup/clean.sh"
 SAFE_RUN_SCRIPT="$SCRIPT_DIR/../safe-run.sh"
 
 # ─── Test gate: only for pushes to main/master ────────────────────────────────
@@ -141,13 +139,6 @@ if [ "$PUSHING_TO_MAIN" = "true" ] && [ "${TSZ_SKIP_PUSH_TESTS:-}" != "1" ]; the
     fi
 fi
 
-# ─── Post-push cleanup (background) ──────────────────────────────────────────
-
-if [[ -x "$CLEAN_SCRIPT" ]]; then
-  # Run cleanup after a 2-second delay so push finishes first.
-  # disown detaches it from the shell so git doesn't wait for it.
-  (sleep 2 && "$CLEAN_SCRIPT" --quiet) &
-  disown 2>/dev/null || true
-fi
-
+# Cleanup is explicit: background deletion races active measurements and removes
+# the raw artifacts needed to review the commit that was just pushed.
 exit 0

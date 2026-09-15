@@ -88,7 +88,7 @@ func tszCaptureCompilation(
 	harness *HarnessOptions,
 	currentDirectory string,
 	config *tsoptions.ParsedCommandLine,
-) {
+) string {
 	t.Helper()
 	directory := os.Getenv("TSZ_ORACLE_INPUT_DIR")
 	if directory == "" {
@@ -157,5 +157,7 @@ func tszCaptureCompilation(
 		t.Fatal(err)
 	}
 	key := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%d", packageName, t.Name(), sequence)))
-	tszWriteInput(t, filepath.Join(directory, "invocations", hex.EncodeToString(key[:])+".json"), data)
+	id := hex.EncodeToString(key[:])
+	tszWriteInput(t, filepath.Join(directory, "invocations", id+".json"), data)
+	return id
 }

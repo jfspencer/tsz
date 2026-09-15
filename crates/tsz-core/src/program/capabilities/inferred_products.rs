@@ -93,6 +93,10 @@ fn add_declaration_expression_nonclaims(nonclaims: &mut ScopedNonclaims<'_>, fil
             if inferred_statement(statement, inference) {
                 record(statement.id, products);
             }
+            // DTS literal printing is owned; reference display still needs its native matrix.
+            if inferred_statement(statement, InferredExpression::PlainTemplate) {
+                record(statement.id, &[CapabilityTarget::References]);
+            }
             if inferred_statement(statement, InferredExpression::DeclarationValue) {
                 record(statement.id, &[CapabilityTarget::DeclarationValue]);
             }
@@ -117,6 +121,7 @@ enum InferredExpression {
     DeclarationValue,
     DeclarationSummary,
     Template,
+    PlainTemplate,
 }
 
 impl InferredExpression {
@@ -153,12 +158,15 @@ impl InferredExpression {
                 | ExpressionKind::NonNull(_)
                 | ExpressionKind::RegularExpression(_)
                 | ExpressionKind::Literal(
-                    Literal::NoSubstitutionTemplate(_)
-                    | Literal::String(StringLiteral::Extended(_))
+                    Literal::String(StringLiteral::Extended(_))
                     | Literal::Number(NumberLiteral::Recovery(_)),
                 ) => true,
                 _ => false,
             },
+            Self::PlainTemplate => matches!(
+                expression.kind,
+                ExpressionKind::Literal(Literal::NoSubstitutionTemplate(_))
+            ),
             Self::Template => matches!(expression.kind, ExpressionKind::Template(_)),
         }
     }

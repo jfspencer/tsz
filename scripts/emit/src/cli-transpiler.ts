@@ -32,6 +32,8 @@ import {
   physicalPathIdentity,
 } from './harness-config.js';
 
+import { compilerScope, compilerFileSystem, compilerInvocation, compilerPath, compilerProcessStatus } from './process-paths.js';
+
 const execFile = promisify(execFileCb);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -88,6 +90,7 @@ interface CompilerFlagOptions {
   noUnusedLocals?: boolean;
   noUnusedParameters?: boolean;
   skipLibCheck?: boolean;
+  newLine?: string;
   strictPropertyInitialization?: boolean;
   importHelpers?: boolean;
   esModuleInterop?: boolean;
@@ -149,6 +152,7 @@ function diagnosticApiCompilerOptions(
     noUnusedLocals: opts.noUnusedLocals,
     noUnusedParameters: opts.noUnusedParameters,
     skipLibCheck: opts.skipLibCheck,
+    newLine: opts.newLine,
     strictPropertyInitialization: opts.strictPropertyInitialization,
     importHelpers: opts.importHelpers,
     esModuleInterop: opts.esModuleInterop,
@@ -187,15 +191,16 @@ function diagnosticApiCompilerOptions(
 
 class PinnedTypeScriptDiagnosticSession {
   private api: TypeScriptAPI | undefined;
+  private activeScope: string | undefined;
 
   constructor(
     private readonly binaryPath: string,
-    private readonly workingDirectory: string,
   ) {}
 
   private client(): TypeScriptAPI {
     this.api ??= new TypeScriptAPI({
-      cwd: this.workingDirectory,
+      cwd: compilerScope(this.activeScope!),
+      fs: compilerFileSystem(() => this.activeScope),
       tsserverPath: this.binaryPath,
     });
     return this.api;
@@ -210,9 +215,14 @@ class PinnedTypeScriptDiagnosticSession {
   ): DiagnosticWitness[] | undefined {
     let snapshot: ReturnType<TypeScriptAPI['updateSnapshot']> | undefined;
     try {
-      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      this.activeScope = scope.scopeDirectory;
+      const hostConfigPath = configPath;
+      configPath = compilerPath(configPath, this.activeScope);
+      scope = { invocationDirectory: compilerPath(scope.invocationDirectory, this.activeScope),
+        scopeDirectory: compilerScope(this.activeScope), forbiddenFile: configPath };
+      fs.mkdirSync(path.dirname(hostConfigPath), { recursive: true });
       fs.writeFileSync(
-        configPath,
+        hostConfigPath,
         `${JSON.stringify({ compilerOptions, files: rootFiles })}\n`,
         'utf8',
       );
@@ -258,14 +268,10 @@ class PinnedTypeScriptDiagnosticSession {
       return undefined;
     } finally {
       snapshot?.dispose();
-      if (this.api !== undefined) {
-        try {
-          const closed = this.api.updateSnapshot({ closeProjects: [configPath] });
-          closed.dispose();
-        } catch {
-          // A failed API request cannot create a witness; close() still owns cleanup.
-        }
-      }
+      // Distinct invocations reuse logical filenames with different VFS roots.
+      // Give each one its own native API session and semantic cache lifetime.
+      this.close();
+      this.activeScope = undefined;
     }
   }
 
@@ -316,6 +322,7 @@ function appendCompilerOptionFlags(args: string[], opts: CompilerFlagOptions): v
   booleanFlag('--noUnusedLocals', opts.noUnusedLocals);
   booleanFlag('--noUnusedParameters', opts.noUnusedParameters);
   booleanFlag('--skipLibCheck', opts.skipLibCheck);
+  if (opts.newLine !== undefined) args.push('--newLine', opts.newLine);
   booleanFlag('--strictPropertyInitialization', opts.strictPropertyInitialization);
   booleanFlag('--importHelpers', opts.importHelpers);
   booleanFlag('--esModuleInterop', opts.esModuleInterop);
@@ -406,7 +413,6 @@ export class CliTranspiler {
     if (this.compiler.diagnosticWitnessProvider === 'typescript-7-api') {
       this.typescriptDiagnostics = new PinnedTypeScriptDiagnosticSession(
         this.compiler.binaryPath,
-        this.tempDir,
       );
     }
   }
@@ -440,6 +446,7 @@ export class CliTranspiler {
       noUnusedLocals?: boolean;
       noUnusedParameters?: boolean;
       skipLibCheck?: boolean;
+      newLine?: string;
       strictPropertyInitialization?: boolean;
       importHelpers?: boolean;
       esModuleInterop?: boolean;
@@ -495,6 +502,7 @@ export class CliTranspiler {
       noUnusedLocals,
       noUnusedParameters,
       skipLibCheck,
+      newLine,
       strictPropertyInitialization,
       importHelpers,
       esModuleInterop,
@@ -658,7 +666,7 @@ export class CliTranspiler {
         // Best effort: the subsequent symlink call will surface any real error.
       }
       const type = fs.statSync(targetPath).isDirectory() ? 'dir' : 'file';
-      fs.symlinkSync(targetPath, linkPath, type);
+      fs.symlinkSync(path.relative(path.dirname(linkPath), targetPath), linkPath, type);
     }
 
     const requestedRootNames = rootFileNames ?? files
@@ -721,6 +729,7 @@ export class CliTranspiler {
         noUnusedLocals,
         noUnusedParameters,
         skipLibCheck,
+        newLine,
         strictPropertyInitialization,
         importHelpers,
         esModuleInterop,
@@ -807,7 +816,8 @@ export class CliTranspiler {
       // Run CLI asynchronously without shell overhead.
       // Use SIGKILL for timeout so the child can't ignore the signal and linger.
       const runWithArgs = async (cliArgs: string[]) => {
-        const promise = execFile(this.compiler.binaryPath, cliArgs, {
+        const invocation = compilerInvocation(this.compiler.binaryPath, cliArgs, testScopeDir, testDir, rootInputFiles.length);
+        const promise = execFile(invocation.binary, invocation.args, {
           cwd: testDir,
           encoding: 'utf-8',
           timeout: this.timeoutMs,
@@ -816,7 +826,16 @@ export class CliTranspiler {
         const child = promise.child;
         this.activeChildren.add(child);
         child.on('exit', () => this.activeChildren.delete(child));
-        return await promise;
+        const completed = await promise.catch(error => {
+          if (invocation.statusPath === undefined || error.killed || error.signal) throw error;
+          throw new Error(`CRASH:${this.compiler.label}:compiler namespace failed: ${error.message}`);
+        });
+        if (invocation.statusPath === undefined) return completed;
+        const status = compilerProcessStatus(invocation.statusPath);
+        if (status.code !== 0 || status.signal !== null) {
+          throw Object.assign(new Error(`compiler terminated: ${this.compiler.label}`), completed, status);
+        }
+        return completed;
       };
 
       const diagnosticCodes = (stdout: unknown, stderr: unknown): string[] => {
@@ -837,7 +856,9 @@ export class CliTranspiler {
         if (this.compiler.diagnosticWitnessProvider === 'tsz-json') {
           try {
             const json = JSON.parse(fs.readFileSync(diagnosticsJsonPath, 'utf8')) as unknown;
-            const witnesses = canonicalizeTszDiagnosticsJson(json, diagnosticScope);
+            const witnesses = canonicalizeTszDiagnosticsJson(json, {
+              invocationDirectory: compilerPath(testDir, testScopeDir), scopeDirectory: compilerScope(testScopeDir),
+            });
             if (witnesses !== undefined && witnessCodesMatch(witnesses, codes)) {
               outcome.diagnosticWitnesses = witnesses;
             }
@@ -851,8 +872,14 @@ export class CliTranspiler {
             const apiConfigPath = path.join(testScopeDir, '.typescript-api', 'tsconfig.json');
             const witnesses = this.typescriptDiagnostics?.collect(
               apiConfigPath,
-              rootInputFiles,
-              diagnosticApiCompilerOptions(testDir, target, module, lib, compilerFlags),
+              rootInputFiles.map(file => compilerPath(file, testScopeDir)),
+              diagnosticApiCompilerOptions(compilerPath(testDir, testScopeDir), target, module, lib, {
+                ...compilerFlags,
+                ...Object.fromEntries(['outDir', 'declarationDir', 'rootDir'].flatMap(key => {
+                  const value = compilerFlags[key as 'outDir' | 'declarationDir' | 'rootDir'];
+                  return value === undefined ? [] : [[key, compilerPath(value, testScopeDir)]];
+                })),
+              }),
               { ...diagnosticScope, forbiddenFile: apiConfigPath },
               codes,
             );

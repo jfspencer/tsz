@@ -80,6 +80,7 @@ const STRING_FORWARDED_OPTIONS = new Set([
   'module',
   'moduledetection',
   'moduleresolution',
+  'newline',
   'outdir',
   'outfile',
   'rootdir',
@@ -199,6 +200,12 @@ export function invalidAuthoredOptions(options: ReadonlyMap<string, AuthoredOpti
         option.source === 'embedded-config'
       ) return true;
       return !isExactBoolean(option);
+    }
+    // CLI trims enum arguments, whereas config parsing preserves whitespace.
+    // Admit only values with identical config/API/argv meaning.
+    if (option.key === 'newline') {
+      return typeof option.value !== 'string' ||
+        !['', 'lf', 'crlf'].includes(option.value.toLowerCase());
     }
     if (STRING_FORWARDED_OPTIONS.has(option.key) || option.key === 'base') {
       if (!isNonEmptyString(option.value)) return true;

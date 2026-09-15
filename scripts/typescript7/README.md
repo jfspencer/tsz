@@ -26,6 +26,50 @@ remain available. This complete native suite includes products those adapters
 do not yet score: type/symbol displays, source-map records, resolution traces,
 native services, project/build/watch tests, and native unit tests.
 
+## Synchronize upstream tests
+
+```bash
+# First sync: all files are recorded as additions.
+scripts/safe-run.sh python3 scripts/typescript7/sync.py \
+  --corpus-source TypeScript --output artifacts/typescript7/sync-first
+
+# Subsequent sync: compare with a prior sync or inventory directory.
+scripts/safe-run.sh python3 scripts/typescript7/sync.py \
+  --previous artifacts/typescript7/sync-first \
+  --output artifacts/typescript7/sync-next
+```
+
+The sync unit is the **entire native repository plus its nested TypeScript
+corpus**, including tests, references, binary fixtures, symlinks, executable
+modes, libraries, tools, and setup files. There is no hand-maintained case list
+to update. Existing clean managed checkouts move to the exact locked commits;
+local dirty files, sparse inputs, inconsistent nested commits, and inconsistent
+active oracle pins stop the sync before it can claim success. Repeating a sync
+at the same release leaves checkout identities unchanged.
+
+Each fresh output directory contains:
+
+- `inventory/`: the complete sharded Git blob/path/mode inventory.
+- `changes-*.jsonl`: every added, removed, or modified file, with both identities.
+  Line-ending-only and executable-mode-only changes remain visible.
+- `sync-summary.json`: release identities, inventory/delta hashes, category
+  counts, and unchanged-file count.
+- `adapter-check/`: generated capture overlays proving that the expected
+  upstream hooks still exist. This checks anchors; run the native smoke below
+  to verify compilation and capture execution.
+
+`--previous` verifies the inventory hash, file count, ordering, duplicate paths,
+and categories before calculating changes. A missing or corrupted shard cannot
+produce a clean report. Sync never edits upstream reference baselines and never
+reports native or TSZ test passes.
+
+The selected release remains **7.0.2**. Sync does not select `latest`, advance a
+branch tip, or accept development versions. Moving to another production release
+requires an explicit, reviewed update of the active pins and their consistency
+checks; run this same sync workflow afterward, review its delta, then run the
+native smoke and candidate comparisons. Capture hooks that changed upstream
+must be ported before the sync check succeeds.
+
 ## Observe the release with its own harness
 
 ```bash
@@ -98,6 +142,33 @@ as a substitute for its own emit. This is an input ledger, not a completed
 replay engine. Other native drivers, such as build/watch and language-service
 tests, still need their own adapters.
 
+## Native completed-result capture
+
+Each captured `CompileFilesEx` invocation also has a matching record under
+`compilations/invocations/`. The reporting overlay reads the completed native
+result before returning it to the original tests; it does not query the compiler
+again or change an assertion. Records retain:
+
+- The input invocation identity, ordered native diagnostics, recursive message
+  chains and related information, categories, flags, and exact diagnostic source
+  bytes. Spans are explicitly **native byte offsets**, not UTF-16 positions.
+- Every file in the native output recorder, including JS, declarations, maps,
+  JSON, and build information. Paths and raw bytes are preserved; file records
+  are sorted by path, and shared bytes live in `compilations/blobs/`.
+- The native emit-skipped state, emit diagnostics, reported output paths, and
+  resolution trace. A missing emit result remains distinct from an empty result.
+
+`summary.json.result_capture` verifies blob hashes, references, invocation
+identities, and ordered payloads. Missing result records are reported by input
+identity and prevent an observation from succeeding. The manifest covers all
+records and blobs; corruption cannot silently become an empty output set.
+
+This is the native API result, not the CLI's diagnostic selection or exit code.
+It provides a direct comparison boundary for candidate replay. Native baseline
+formatting, type/symbol displays, auxiliary checks, and other test drivers still
+need their own candidate adapters; captured oracle results are never candidate
+outputs.
+
 ## Candidate replay
 
 ```bash
@@ -125,12 +196,52 @@ Results retain process exit status, original stdout/stderr bytes, structured
 TSZ JSON when produced, new/changed files, and removed input paths. Timeouts
 terminate the process group and retain the observed partial products. A binary
 hash identifies the candidate, and the input manifest is checked before replay.
+`summary.json.candidate_capture` hashes every result and shared blob, verifies
+sidecar bytes, and requires exactly one candidate record for every native input.
 
 This command deliberately exits 1 and reports `tsz_parity: unmeasured`: candidate
 execution is now available, but native baseline formatting and assertion replay
 are unfinished. In particular, native compiler tests collect diagnostic phases
 that the CLI may suppress; CLI observations cannot substitute for those native
 API products. A zero candidate exit is not a passing native test.
+
+## Compare captured observations
+
+```bash
+python3 scripts/typescript7/replay_diff.py \
+  --oracle artifacts/typescript7/7.0.2-replay-inputs \
+  --candidate artifacts/typescript7/7.0.2-tsz-replay \
+  --output artifacts/typescript7/7.0.2-replay-diff
+```
+
+The oracle observation must contain completed native results, and the replay
+must contain its candidate manifest. Older replay directories must be rerun.
+Both input identities and all three manifests are verified before comparison;
+missing/extra invocations, duplicate output paths, changed records, corrupt
+blobs, and altered sidecars are errors. Fresh output directories retain every
+invocation in hashed JSONL shards, including unsupported and unavailable rows.
+
+Two explicit projections are compared:
+
+- Ordered diagnostic headers: path, position, length, code, category and text.
+  Native byte spans are converted to UTF-16 using their captured source bytes.
+  Messages, order and duplicate diagnostics are unchanged. Missing candidate
+  diagnostics are unavailable, never an implicit empty list. Chains, related
+  information, diagnostic flags and native phase selection remain outside this
+  projection.
+- Filesystem changes: exact bytes, paths and modes of new/changed files, plus
+  candidate input removals. The equivalent delta is derived from native output
+  records and original input files. Same-byte writes are not visible as write
+  events in this projection. Native output through a symlink remains explicitly
+  unavailable until write-event capture is implemented.
+
+Candidate completion is recorded separately. A matching projection can coexist
+with incomplete compiler work and **never counts as a passing native test**.
+The command exits 1 with `tsz_parity: unmeasured`, even when both projections
+match; malformed or inconsistent evidence exits 2. Full result APIs, emit
+events, traces, baseline rendering and other native test drivers still need
+ports. The comparison works with either compiler foundation and does not read
+compiler internals or feed expected outputs into the candidate.
 
 ## Release-native limitations observed locally
 

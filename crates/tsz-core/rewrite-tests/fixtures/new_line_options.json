@@ -1,0 +1,107 @@
+[
+  {
+    "kind": "cli",
+    "value": "lf",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "cli",
+    "value": "crlf",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\r\n"
+  },
+  {
+    "kind": "cli",
+    "value": "LF",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "cli",
+    "value": " CRLF ",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\r\n"
+  },
+  {
+    "kind": "cli",
+    "value": "bad",
+    "exit": 1,
+    "stdout": "error TS6046: Argument for '--newLine' option must be: 'crlf', 'lf'.\n",
+    "js": null
+  },
+  {
+    "kind": "cli",
+    "value": "",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "config",
+    "value": "lf",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "config",
+    "value": "crlf",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\r\n"
+  },
+  {
+    "kind": "config",
+    "value": "LF",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "config",
+    "value": " CRLF ",
+    "exit": 2,
+    "stdout": "tsconfig.json(1,33): error TS6046: Argument for '--newLine' option must be: 'crlf', 'lf'.\n",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "config",
+    "value": "bad",
+    "exit": 2,
+    "stdout": "tsconfig.json(1,33): error TS6046: Argument for '--newLine' option must be: 'crlf', 'lf'.\n",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "config",
+    "value": "",
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "config",
+    "value": false,
+    "exit": 2,
+    "stdout": "tsconfig.json(1,33): error TS5024: Compiler option 'newLine' requires a value of type enum.\n",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "config",
+    "value": 1,
+    "exit": 2,
+    "stdout": "tsconfig.json(1,33): error TS5024: Compiler option 'newLine' requires a value of type enum.\n",
+    "js": "export const value = 1;\n"
+  },
+  {
+    "kind": "config",
+    "value": null,
+    "exit": 0,
+    "stdout": "",
+    "js": "export const value = 1;\n"
+  }
+]

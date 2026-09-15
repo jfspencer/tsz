@@ -26,7 +26,7 @@ impl Printer<'_> {
             }
         }
         if self.output.len() != output_start {
-            self.output.push_str("void 0;\n");
+            self.write_line("void 0;");
         }
         for statement in &unit.statements {
             if let StatementKind::Function(declaration) = &statement.kind
@@ -69,7 +69,7 @@ impl Printer<'_> {
                 self.output.push_str(", ");
                 self.write_runtime_variable_declarator(declarator);
             }
-            self.output.push_str(";\n");
+            self.write_line(";");
         }
 
         let mut initializers = declaration
@@ -83,7 +83,7 @@ impl Printer<'_> {
                 self.output.push_str(", ");
                 self.write_commonjs_variable_assignment(declarator, initializer);
             }
-            self.output.push_str(";\n");
+            self.write_line(";");
         }
     }
     fn write_commonjs_variable_assignment(
@@ -127,6 +127,13 @@ impl Printer<'_> {
     }
     pub(super) fn write_commonjs_export(&mut self, export_name: &str, local_name: &str) {
         self.write_indent();
-        self.write_parts(&["exports.", export_name, " = ", local_name, ";\n"]);
+        self.write_parts(&[
+            "exports.",
+            export_name,
+            " = ",
+            local_name,
+            ";",
+            self.new_line,
+        ]);
     }
 }

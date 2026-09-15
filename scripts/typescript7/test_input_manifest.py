@@ -115,7 +115,8 @@ class OverlayTests(unittest.TestCase):
             harness.parent.mkdir(parents=True)
             baseline.write_text('\t\trecordBaseline(t, filepath.Join(subfolder, fileName))\n'
                                 '\trecordBaseline(t, filepath.Join(opts.Subfolder, fileName))\n')
-            source = '\tfs := vfstest.FromMap(testfs, harnessOptions.UseCaseSensitiveFileNames)\n'
+            source = ('\tfs := vfstest.FromMap(testfs, harnessOptions.UseCaseSensitiveFileNames)\n'
+                      '\tresult.Trace = host.tracer.String()\n')
             harness.write_text(source)
             output = root / "output"
             output.mkdir()
@@ -123,8 +124,12 @@ class OverlayTests(unittest.TestCase):
             self.assertEqual(harness.read_text(), source)
             patched = Path(overlay[str(harness)]).read_text()
             self.assertEqual(patched.count("tszCaptureCompilation("), 1)
-            self.assertTrue(patched.endswith(source))
+            self.assertEqual(patched.count("tszCaptureCompilationResult("), 1)
+            self.assertIn("tszInvocation := tszCaptureCompilation(", patched)
             self.assertTrue(Path(overlay[str(harness.with_name("tsz_capture_inputs.go"))]).is_file())
+            harness.write_text(source.replace("result.Trace = host.tracer.String()", "result.Trace = changed()"))
+            with self.assertRaisesRegex(ValueError, "result capture anchor"):
+                make_overlay(root, output)
             harness.write_text(source * 2)
             with self.assertRaisesRegex(ValueError, "input capture anchor"):
                 make_overlay(root, output)

@@ -39,7 +39,7 @@ impl Printer<'_> {
             self.reject_declaration();
             return;
         }
-        self.output.push_str(";\n");
+        self.write_line(";");
     }
 
     fn checked_function_result(&self, declaration: &FunctionDeclaration) -> Option<&RenderedType> {
@@ -82,7 +82,7 @@ impl Printer<'_> {
             self.output.push_str(" implements ");
             self.write_type_list(&declaration.implements, ", ", TYPE_PREC_LOWEST);
         }
-        self.output.push_str(" {\n");
+        self.write_line(" {");
         self.indent += 1;
         if declaration
             .members
@@ -90,7 +90,7 @@ impl Printer<'_> {
             .any(|member| member.name_kind == PropertyNameKind::PrivateIdentifier)
         {
             self.write_indent();
-            self.output.push_str("#private;\n");
+            self.write_line("#private;");
         }
         if let Some(parameters) = declaration
             .members
@@ -142,7 +142,7 @@ impl Printer<'_> {
                         self.write_declaration_parameters(parameters);
                         self.declaration_parameter_property_host = previous;
                     }
-                    self.output.push_str(";\n");
+                    self.write_line(";");
                 }
                 ClassMemberKind::Property {
                     annotation,
@@ -151,11 +151,9 @@ impl Printer<'_> {
                     ..
                 } => {
                     self.write_property_name(&member.name, member.name_span, member.name_kind);
-                    if *optional {
-                        self.output.push('?');
-                    }
+                    self.write_token_if(*optional, "?");
                     if member.modifiers.private {
-                        self.output.push_str(";\n");
+                        self.write_line(";");
                         continue;
                     }
                     self.output.push_str(": ");
@@ -170,7 +168,7 @@ impl Printer<'_> {
                         }
                         self.output.push_str("unknown");
                     }
-                    self.output.push_str(";\n");
+                    self.write_line(";");
                 }
                 ClassMemberKind::Method {
                     type_parameters,
@@ -195,7 +193,7 @@ impl Printer<'_> {
                                 member.name_span,
                                 member.name_kind,
                             );
-                            self.output.push_str(";\n");
+                            self.write_line(";");
                         }
                         continue;
                     }
@@ -211,7 +209,7 @@ impl Printer<'_> {
                     }
                     self.write_declaration_parameters(parameters);
                     if matches!(accessor, Some(AccessorKind::Set)) {
-                        self.output.push_str(";\n");
+                        self.write_line(";");
                         continue;
                     }
                     self.output.push_str(": ");
@@ -225,19 +223,19 @@ impl Printer<'_> {
                         self.reject_declaration();
                         self.output.push_str("unknown");
                     }
-                    self.output.push_str(";\n");
+                    self.write_line(";");
                 }
             }
         }
         self.indent = self.indent.saturating_sub(1);
         self.write_indent();
-        self.output.push_str("}\n");
+        self.write_line("}");
     }
     pub(super) fn write_parameter_property_fields(&mut self, parameters: &[Parameter]) {
         for parameter in parameter_properties(parameters) {
             self.write_indent();
             self.write_authored_identifier(&parameter.name, parameter.name_span);
-            self.output.push_str(";\n");
+            self.write_line(";");
         }
     }
     pub(super) fn write_declaration_parameter_type(&mut self, parameter: &Parameter) {
@@ -253,7 +251,9 @@ impl Printer<'_> {
     }
     fn write_declaration_initializer_type(&mut self, initializer: &crate::syntax::Expression) {
         match &initializer.kind {
-            ExpressionKind::Literal(Literal::String(_)) => self.output.push_str("string"),
+            ExpressionKind::Literal(Literal::String(_) | Literal::NoSubstitutionTemplate(_)) => {
+                self.output.push_str("string")
+            }
             ExpressionKind::Literal(Literal::Number(_)) => self.output.push_str("number"),
             ExpressionKind::Literal(Literal::BigInt(_)) => self.output.push_str("bigint"),
             ExpressionKind::Literal(Literal::Boolean(_)) => self.output.push_str("boolean"),
@@ -273,15 +273,14 @@ impl Printer<'_> {
             } else if has_parameter_modifier(parameter, ParameterModifier::Protected) {
                 self.output.push_str("protected ");
             }
-            if has_parameter_modifier(parameter, ParameterModifier::Readonly) {
-                self.output.push_str("readonly ");
-            }
+            self.write_token_if(
+                has_parameter_modifier(parameter, ParameterModifier::Readonly),
+                "readonly ",
+            );
             self.write_authored_identifier(&parameter.name, parameter.name_span);
-            if parameter.optional {
-                self.output.push('?');
-            }
+            self.write_token_if(parameter.optional, "?");
             if private {
-                self.output.push_str(";\n");
+                self.write_line(";");
                 continue;
             }
             self.output.push_str(": ");
@@ -294,7 +293,7 @@ impl Printer<'_> {
             {
                 self.output.push_str(" | undefined");
             }
-            self.output.push_str(";\n");
+            self.write_line(";");
         }
     }
     pub(super) fn write_private_accessor_declaration(
@@ -310,8 +309,8 @@ impl Printer<'_> {
         });
         self.write_property_name(name, name_span, name_kind);
         match accessor {
-            AccessorKind::Get => self.output.push_str("();\n"),
-            AccessorKind::Set => self.output.push_str("(value);\n"),
+            AccessorKind::Get => self.write_line("();"),
+            AccessorKind::Set => self.write_line("(value);"),
         }
     }
     pub(super) fn write_constructor_body(
@@ -325,7 +324,7 @@ impl Printer<'_> {
             self.write_braced_statements(body_span, statements);
             return;
         }
-        self.output.push_str("{\n");
+        self.write_line("{");
         self.indent += 1;
         let directive_count = statements.iter().map_while(directive).count();
         for statement in &statements[..directive_count] {
@@ -361,13 +360,11 @@ impl Printer<'_> {
             self.write_authored_identifier(&parameter.name, parameter.name_span);
             self.output.push_str(" = ");
             self.write_authored_identifier(&parameter.name, parameter.name_span);
-            self.output.push_str(";\n");
+            self.write_line(";");
         }
     }
     pub(super) fn write_type_member(&mut self, member: &TypeMember) {
-        if member.modifiers.readonly {
-            self.output.push_str("readonly ");
-        }
+        self.write_token_if(member.modifiers.readonly, "readonly ");
         match &member.kind {
             TypeMemberKind::Property {
                 name,
@@ -376,18 +373,14 @@ impl Printer<'_> {
                 initializer,
             } => {
                 self.write_type_member_name(name);
-                if *optional {
-                    self.output.push('?');
-                }
+                self.write_token_if(*optional, "?");
                 if let Some(ty) = ty {
                     self.output.push_str(": ");
                     self.write_type(ty, TYPE_PREC_LOWEST);
                 } else if let Some(initializer) = initializer {
                     self.output.push_str(": ");
                     self.write_declaration_initializer_type(initializer);
-                    if *optional {
-                        self.output.push_str(" | undefined");
-                    }
+                    self.write_token_if(*optional, " | undefined");
                 } else {
                     self.output.push_str(": any");
                 }
@@ -400,9 +393,7 @@ impl Printer<'_> {
                 return_type,
             } => {
                 self.write_type_member_name(name);
-                if *optional {
-                    self.output.push('?');
-                }
+                self.write_token_if(*optional, "?");
                 self.write_type_parameters(type_parameters);
                 self.write_declaration_parameters(parameters);
                 self.write_type_member_return(return_type.as_ref(), Some("any"));
@@ -430,16 +421,10 @@ impl Printer<'_> {
             } => {
                 self.output.push('[');
                 for (index, parameter) in parameters.iter().enumerate() {
-                    if index != 0 {
-                        self.output.push_str(", ");
-                    }
-                    if parameter.rest {
-                        self.output.push_str("...");
-                    }
+                    self.write_token_if(index != 0, ", ");
+                    self.write_token_if(parameter.rest, "...");
                     self.write_authored_identifier(&parameter.name, parameter.name_span);
-                    if parameter.optional {
-                        self.output.push('?');
-                    }
+                    self.write_token_if(parameter.optional, "?");
                     if let Some(annotation) = &parameter.annotation {
                         self.output.push_str(": ");
                         self.write_type(annotation, TYPE_PREC_LOWEST);

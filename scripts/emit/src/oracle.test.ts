@@ -111,7 +111,7 @@ else process.exit(1);
     assert.deepEqual(
       repeated.outcome.diagnosticWitnesses,
       semantic.outcome.diagnosticWitnesses,
-      'one pinned API session is reused without leaking per-invocation paths or state',
+      'repeated pinned API queries do not leak per-invocation paths or state',
     );
 
     const globals = await pinnedCli.transpile('', undefined, undefined, {

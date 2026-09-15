@@ -43,3 +43,39 @@ observations and unknown diagnostic witnesses remain explicit limits even when
 their records are unchanged. The existing regression-set gate still checks
 status transitions, product parity, and oracle-clean diagnostic code growth;
 it does not replace a full payload audit.
+
+## Stable compiler-visible paths
+
+On Linux, the CLI adapter requires `bubblewrap` (`bwrap`) and Node available.
+Other platforms retain host-path execution and report `compilerPaths.adapter`
+as `host`; stable embedded source paths remain unimplemented there. A Linux
+namespace setup failure never falls back to host-path execution.
+Each invocation mounts its private staging directory at `/tmp/tsz-emit-scope`
+in a separate mount namespace. Both compilers therefore see the same paths,
+including parent-relative files and symlink targets. Path-valued argv entries
+are mapped before execution; non-path options and source bytes stay unchanged.
+Staged symlinks use relative targets so resolving them stays in the mapped tree.
+The rest of the host filesystem remains available as in the existing adapter;
+this is path isolation, not a security sandbox or a full native virtual host.
+
+This matters for JSX development output, where TypeScript emits a source-file
+name as a string literal. Earlier runs embedded each compiler's random host
+staging directory, making even repeated oracle output differ. The adapter now
+compares the original output bytes at a stable compiler-visible location; it
+never replaces paths in emitted JS/DTS. Reports name this execution mode in
+`compilerPaths`. Historical reports without that field used host staging paths.
+
+An observer inside the namespace records the actual compiler exit code or
+signal. A wrapper's successful exit cannot manufacture a successful compile,
+and a genuine exit 143 remains distinct from SIGTERM. Timeout/termination kills
+the namespace and its children. Missing observer evidence or namespace setup
+failure cannot produce an observed successful compiler result.
+
+Native diagnostic API calls use the production API’s virtual-filesystem hooks
+to expose the same paths and source snapshot. File reads, directory enumeration,
+and symlink resolution map to the matching invocation’s host staging directory.
+Each invocation uses a fresh native API session so identical logical filenames
+cannot reuse caches from a different virtual filesystem. Native API result
+capture under `scripts/typescript7/` retains the upstream virtual paths and is a
+separate test surface; the emit adapter does not claim to reproduce that entire
+virtual filesystem or native test-driver behavior.

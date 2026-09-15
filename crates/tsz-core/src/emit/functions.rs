@@ -16,13 +16,9 @@ impl Printer<'_> {
         self.write_indent();
         if top_level && declaration.exported && self.module_format == ModuleFormat::EsModule {
             self.output.push_str("export ");
-            if declaration.default_export {
-                self.output.push_str("default ");
-            }
+            self.write_token_if(declaration.default_export, "default ");
         }
-        if declaration.is_async {
-            self.output.push_str("async ");
-        }
+        self.write_token_if(declaration.is_async, "async ");
         self.output.push_str("function ");
         if top_level && declaration.exported && self.module_format == ModuleFormat::CommonJs {
             self.output
@@ -33,7 +29,7 @@ impl Printer<'_> {
         self.write_runtime_parameters(&declaration.parameters, true);
         self.output.push(' ');
         self.write_function_body(declaration.body_span, &declaration.body);
-        self.output.push('\n');
+        self.write_line("");
     }
     pub(super) fn write_object_property(&mut self, property: &ObjectProperty) {
         self.write_property_name(&property.name, property.name_span, property.name_kind);
@@ -103,12 +99,11 @@ impl Printer<'_> {
         }
         self.output.push_str("{ ");
         for (index, statement) in body.iter().enumerate() {
-            if index != 0 {
-                self.output.push(' ');
-            }
+            self.write_token_if(index != 0, " ");
             self.write_javascript_statement(statement, false);
             if self.output.ends_with('\n') {
-                self.output.pop();
+                self.output
+                    .truncate(self.output.len() - self.new_line.len());
             }
         }
         if let Some(span) = body_span {
@@ -137,13 +132,9 @@ impl Printer<'_> {
             return;
         }
         let parenthesize = starts_with_erased_function_expression(expression);
-        if parenthesize {
-            self.output.push('(');
-        }
+        self.write_token_if(parenthesize, "(");
         self.write_expression(expression, PREC_LOWEST);
-        if parenthesize {
-            self.output.push(')');
-        }
+        self.write_token_if(parenthesize, ")");
     }
     fn write_arrow(
         &mut self,
@@ -172,12 +163,12 @@ impl Printer<'_> {
                 self.write_arrow_expression(expression, PREC_ASSIGNMENT);
             }
             ArrowBody::Expression(expression) => {
-                self.output.push_str("{\n");
+                self.write_line("{");
                 self.indent += 1;
                 self.write_indent();
                 self.output.push_str("return ");
                 self.write_arrow_expression(expression, PREC_LOWEST);
-                self.output.push_str(";\n");
+                self.write_line(";");
                 self.indent = self.indent.saturating_sub(1);
                 self.write_indent();
                 self.output.push('}');
@@ -189,13 +180,9 @@ impl Printer<'_> {
         let parenthesize = starts_with_erased_expression(expression, |expression| {
             matches!(expression.kind, ExpressionKind::Object(_))
         });
-        if parenthesize {
-            self.output.push('(');
-        }
+        self.write_token_if(parenthesize, "(");
         self.write_expression(expression, precedence);
-        if parenthesize {
-            self.output.push(')');
-        }
+        self.write_token_if(parenthesize, ")");
     }
 }
 
