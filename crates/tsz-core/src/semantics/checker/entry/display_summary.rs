@@ -65,7 +65,7 @@ impl Checker<'_> {
                 let _ = self.declaration_value_type(value);
             }
         }
-        let mut summaries = DeclarationDisplaySummaries::new();
+        let mut summaries = DeclarationDisplaySummaries::default();
         for file in &self.program.files {
             for declaration in &file.bindings.declarations {
                 summaries.insert(declaration.id, self.display_summary(file, declaration));
@@ -152,10 +152,7 @@ impl Checker<'_> {
         };
         let dependencies = self.default_export_dependencies(ready)?;
         Some(DefaultExportDeclaration::Typed {
-            ty: RenderedType {
-                text,
-                part_kind: "text",
-            },
+            ty: RenderedType::text(text),
             preferred_name: match &expression.peel_parentheses().kind {
                 ExpressionKind::Identifier { name, .. } => Some(name.clone()),
                 _ => None,
@@ -214,7 +211,7 @@ impl Checker<'_> {
                 }) => {
                     let kind = variable_kind_text(declaration_kind);
                     let ty = match declaration.annotation.as_ref() {
-                        Some(node) => render_authored_type(file, self.options, node),
+                        Some(node) => render_authored_type(file, self.options, node, None),
                         None => self.inferred_display_type(bound.id),
                     };
                     let display = ty.as_ref().map_or_else(
@@ -238,7 +235,7 @@ impl Checker<'_> {
                     let result = declaration
                         .return_type
                         .as_ref()
-                        .and_then(|node| render_authored_type(file, self.options, node))
+                        .and_then(|node| render_authored_type(file, self.options, node, None))
                         .or_else(|| {
                             (infer_empty && declaration.body.is_empty()).then(|| RenderedType {
                                 text: "void".to_string(),
@@ -271,7 +268,7 @@ impl Checker<'_> {
                     )
                 }
                 Some(DeclarationModel::TypeAlias { declaration, .. }) => {
-                    let ty = render_authored_type(file, self.options, &declaration.ty);
+                    let ty = render_authored_type(file, self.options, &declaration.ty, None);
                     let display = ty.as_ref().map_or_else(
                         || format!("type {}", declaration.name),
                         |ty| format!("type {} = {}", declaration.name, ty.text),
@@ -623,25 +620,24 @@ impl Checker<'_> {
                 )
                 && self.semantic_declaration_is_claimed(target)
                 && self.value_group_ids(target).as_slice() == [target])
-            .then(|| RenderedType {
-                text: format!("typeof {}", file.source.slice(*reference_span).trim()),
-                part_kind: "text",
+            .then(|| {
+                RenderedType::text(format!(
+                    "typeof {}",
+                    file.source.slice(*reference_span).trim()
+                ))
             });
         }
-        self.array_object_union_declaration_type(bound.id, initializer)
-            .or_else(|| self.inferred_display_type(bound.id))
+        let ValueQueryState::Ready(value) = self.value_queries.get(&bound.id)? else {
+            return None;
+        };
+        self.literal_declaration_type(*value, initializer, 0)
+            .map(RenderedType::text)
     }
     fn inferred_display_type(&self, declaration: DeclId) -> Option<RenderedType> {
         let ValueQueryState::Ready(value) = self.value_queries.get(&declaration)? else {
             return None;
         };
-        let Completion::Complete(text) = self.display_type_for_diagnostic(*value) else {
-            return None;
-        };
-        Some(RenderedType {
-            text,
-            part_kind: "text",
-        })
+        complete_text(self.display_type_for_diagnostic(*value)).map(RenderedType::text)
     }
 
     fn inferred_function_result(&self, declaration: DeclId) -> Option<RenderedType> {
@@ -657,61 +653,61 @@ impl Checker<'_> {
         else {
             return None;
         };
-        let Completion::Complete(text) = self.display_type_for_diagnostic(result) else {
-            return None;
-        };
-        Some(RenderedType {
-            text,
-            part_kind: "text",
-        })
+        complete_text(self.display_type_for_diagnostic(result)).map(RenderedType::text)
     }
 
-    fn array_object_union_declaration_type(
+    fn literal_declaration_type(
         &self,
-        declaration: DeclId,
+        value: TypeId,
         initializer: &Expression,
-    ) -> Option<RenderedType> {
-        let ExpressionKind::Array(elements) = &initializer.kind else {
-            return None;
-        };
-        let value = match self.value_queries.get(&declaration)? {
-            ValueQueryState::Ready(value) => *value,
-            ValueQueryState::Provisional | ValueQueryState::Computing => return None,
-        };
-        let TypeKind::Array(element) = self.store.kind(value) else {
-            return None;
-        };
-        let TypeKind::Union(members) = self.store.kind(*element) else {
-            return None;
-        };
-        if elements.len() != members.len() {
+        depth: usize,
+    ) -> Option<String> {
+        if depth > 24 {
             return None;
         }
-        let objects = elements
-            .iter()
-            .map(|element| match &element.peel_parentheses().kind {
-                ExpressionKind::Object(properties) => Some(properties.as_slice()),
-                _ => None,
-            })
-            .collect::<Option<Vec<_>>>()?;
-        let mut display_properties = Vec::<(String, String)>::new();
-        for properties in &objects {
-            for property in *properties {
-                let display = declaration_property_name(property)?;
-                if !display_properties
-                    .iter()
-                    .any(|(name, _)| name == &property.name)
-                {
-                    display_properties.push((property.name.clone(), display));
+        let (members, objects, array) =
+            match (self.store.kind(value), &initializer.peel_parentheses().kind) {
+                (TypeKind::Object(_), ExpressionKind::Object(properties)) => (
+                    std::slice::from_ref(&value),
+                    vec![properties.as_slice()],
+                    false,
+                ),
+                (TypeKind::Array(element), ExpressionKind::Array(elements)) => {
+                    let members = match self.store.kind(*element) {
+                        TypeKind::Union(members) => members.as_slice(),
+                        TypeKind::Object(_) => std::slice::from_ref(element),
+                        _ => return complete_text(self.display_type_for_diagnostic(value)),
+                    };
+                    let Some(objects) = elements
+                        .iter()
+                        .map(|element| match &element.peel_parentheses().kind {
+                            ExpressionKind::Object(properties) => Some(properties.as_slice()),
+                            _ => None,
+                        })
+                        .collect::<Option<Vec<_>>>()
+                    else {
+                        return complete_text(self.display_type_for_diagnostic(value));
+                    };
+                    if members.len() != objects.len() && members.len() != 1 {
+                        return None;
+                    }
+                    (members, objects, true)
                 }
-            }
-        }
-        let mut text = "(".to_string();
-        for (index, (member, authored)) in members.iter().zip(objects).enumerate() {
+                _ => return complete_text(self.display_type_for_diagnostic(value)),
+            };
+        let mut seen = BTreeSet::new();
+        let authored_properties = objects
+            .iter()
+            .flat_map(|properties| properties.iter())
+            .filter(|property| seen.insert(&property.name))
+            .collect::<Vec<_>>();
+        let parentheses = array && members.len() > 1;
+        let mut text = String::from(if parentheses { "(" } else { "" });
+        for (index, (member, authored)) in members.iter().zip(&objects).enumerate() {
             let TypeKind::Object(shape) = self.store.kind(*member) else {
                 return None;
             };
-            if shape.properties.len() != display_properties.len()
+            if shape.properties.len() != authored_properties.len()
                 || !shape.call_signatures.is_empty()
                 || !shape.construct_signatures.is_empty()
                 || !shape.index_signatures.is_empty()
@@ -721,57 +717,98 @@ impl Checker<'_> {
             if index != 0 {
                 text.push_str(" | ");
             }
+            if shape.properties.is_empty() {
+                text.push_str("{}");
+                continue;
+            }
             text.push_str("{\n");
-            for (name, display_name) in &display_properties {
+            for authored_name in &authored_properties {
+                let display_name = declaration_property_name(authored_name)?;
                 let property = shape
                     .properties
                     .iter()
-                    .find(|property| &property.name == name)?;
-                let authored_property = authored.iter().find(|property| &property.name == name);
-                text.push_str("    ");
-                if let Some(method) = authored_property
-                    .filter(|property| object_property_is_method(property))
-                    .and_then(|_| self.render_object_method(display_name, property.ty))
+                    .find(|property| property.name == authored_name.name)?;
+                let authored_property = authored
+                    .iter()
+                    .find(|property| property.name == authored_name.name);
+                text.push_str(&"    ".repeat(depth + 1));
+                if let Some(authored) =
+                    authored_property.filter(|property| object_property_is_method(property))
                 {
-                    text.push_str(&method);
+                    text.push_str(&self.render_object_method(
+                        &display_name,
+                        property.ty,
+                        authored,
+                        depth,
+                    )?);
                 } else {
                     if authored_property.is_none()
                         && (!property.optional || property.ty != self.store.builtins.undefined)
                     {
                         return None;
                     }
-                    text.push_str(display_name);
+                    text.push_str(&display_name);
                     if property.optional {
                         text.push('?');
                     }
                     text.push_str(": ");
-                    let Completion::Complete(property_type) = self.store.display(property.ty)
-                    else {
-                        return None;
+                    let property_type = match authored_property {
+                        Some(authored) => {
+                            self.literal_declaration_type(property.ty, &authored.value, depth + 1)?
+                        }
+                        None => complete_text(self.display_type_for_diagnostic(property.ty))?,
                     };
                     text.push_str(&property_type);
                 }
                 text.push_str(";\n");
             }
+            text.push_str(&"    ".repeat(depth));
             text.push('}');
         }
-        text.push_str(")[]");
-        Some(RenderedType {
-            text,
-            part_kind: "text",
-        })
+        if parentheses {
+            text.push(')');
+        }
+        if array {
+            text.push_str("[]");
+        }
+        Some(text)
     }
-    fn render_object_method(&self, name: &str, ty: TypeId) -> Option<String> {
+    fn render_object_method(
+        &self,
+        name: &str,
+        ty: TypeId,
+        property: &ObjectProperty,
+        depth: usize,
+    ) -> Option<String> {
         let TypeKind::Function(signature) = self.store.kind(ty) else {
             return None;
         };
-        if signature.generic_declaration.is_some() || !signature.parameters.is_empty() {
-            return None;
-        }
-        let Completion::Complete(return_type) = self.store.display(signature.return_type) else {
+        let ExpressionKind::FunctionLike(function) = &property.value.peel_parentheses().kind else {
             return None;
         };
-        Some(format!("{name}(): {return_type}"))
+        let file = self.program.file(property.value.span.file)?;
+        if signature.generic_declaration.is_some()
+            || signature.parameters.len() != function.parameters.len()
+        {
+            return None;
+        }
+        let mut authored = function.parameters.iter();
+        let parameters = complete_text(self.store.display_parameters(signature, |ty| {
+            match authored
+                .next()
+                .and_then(|parameter| parameter.annotation.as_ref())
+            {
+                Some(annotation) => {
+                    render_authored_type(file, self.options, annotation, Some(depth + 1))
+                        .map_or(Completion::Deferred, |rendered| {
+                            Completion::Complete(rendered.text)
+                        })
+                }
+                None => self.display_type_for_diagnostic(ty),
+            }
+        }))?;
+        let result = complete_text(self.display_type_for_diagnostic(signature.return_type))?;
+        Some(format!("{name}({parameters}): {result}"))
     }
 }
 fn object_property_is_method(property: &ObjectProperty) -> bool {
@@ -799,4 +836,11 @@ fn owner_statement(file: &ProgramFile, owner: NodeId) -> Option<&Statement> {
         }
     });
     result
+}
+
+fn complete_text(result: Completion<String>) -> Option<String> {
+    match result {
+        Completion::Complete(text) => Some(text),
+        Completion::Deferred | Completion::Cycle | Completion::Limit => None,
+    }
 }

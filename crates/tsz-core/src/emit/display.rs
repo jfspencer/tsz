@@ -12,13 +12,15 @@ pub(crate) fn render_authored_type(
     file: &ProgramFile,
     options: &CompilerOptions,
     ty: &TypeNode,
+    indent: Option<usize>,
 ) -> Option<RenderedType> {
     if !authored_type_display_is_supported(ty) {
         return None;
     }
     let mut printer = Printer::new(&file.source, &file.bindings, options);
     printer.begin_declaration(None);
-    printer.compact_type = true;
+    printer.compact_type = indent.is_none();
+    printer.indent = indent.unwrap_or(0);
     printer.write_type(ty, TYPE_PREC_LOWEST);
     printer.declaration_is_complete().then_some(RenderedType {
         text: printer.output,
@@ -128,7 +130,7 @@ pub(crate) fn render_authored_parameter(
                 part_kind: "keyword",
             })
         },
-        |ty| render_authored_type(file, options, ty),
+        |ty| render_authored_type(file, options, ty, None),
     )?;
     let optional = parameter.optional || parameter.initializer.is_some();
     Some(RenderedParameter {

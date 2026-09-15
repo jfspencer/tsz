@@ -1226,6 +1226,13 @@ impl TypeStore {
         if depth > 24 {
             return Completion::Limit;
         }
+        self.display_with_children(id, |child| self.display_inner(child, depth + 1))
+    }
+    pub(crate) fn display_with_children(
+        &self,
+        id: TypeId,
+        mut render: impl FnMut(TypeId) -> Completion<String>,
+    ) -> Completion<String> {
         Completion::Complete(match self.kind(id) {
             TypeKind::Error | TypeKind::Invalid(_) => "error".to_string(),
             TypeKind::Any => "any".to_string(),
@@ -1255,12 +1262,20 @@ impl TypeStore {
                 } else {
                     format!(
                         "{name}<{}>",
-                        completed!(self.display_types(arguments, ", ", depth))
+                        completed!(display_types(arguments, ", ", &mut render))
                     )
                 }
             }
+            TypeKind::ClassConstructor { name, .. } => format!("typeof {name}"),
+            TypeKind::Function(signature) => {
+                format!(
+                    "({}) => {}",
+                    completed!(self.display_parameters(signature, &mut render)),
+                    completed!(render(signature.return_type))
+                )
+            }
             TypeKind::Array(element) => {
-                let element_name = completed!(self.display_inner(*element, depth + 1));
+                let element_name = completed!(render(*element));
                 if matches!(
                     self.kind(*element),
                     TypeKind::Union(_) | TypeKind::Intersection(_) | TypeKind::Function(_)
@@ -1273,12 +1288,12 @@ impl TypeStore {
             TypeKind::Tuple(elements) => {
                 format!(
                     "[{}]",
-                    completed!(self.display_types(elements, ", ", depth))
+                    completed!(display_types(elements, ", ", &mut render))
                 )
             }
-            TypeKind::Union(members) => completed!(self.display_types(members, " | ", depth)),
+            TypeKind::Union(members) => completed!(display_types(members, " | ", &mut render)),
             TypeKind::Intersection(members) => {
-                completed!(self.display_types(members, " & ", depth))
+                completed!(display_types(members, " & ", &mut render))
             }
             TypeKind::Object(shape) => {
                 if !shape.call_signatures.is_empty()
@@ -1296,45 +1311,34 @@ impl TypeStore {
                             "{}{}: {}",
                             property.name,
                             if property.optional { "?" } else { "" },
-                            completed!(self.display_inner(property.ty, depth + 1))
+                            completed!(render(property.ty))
                         ));
                     }
                     format!("{{ {}; }}", members.join("; "))
                 }
             }
-            TypeKind::ClassConstructor { name, .. } => format!("typeof {name}"),
-            TypeKind::Function(signature) => {
-                let mut parameters = Vec::with_capacity(signature.parameters.len());
-                for parameter in &signature.parameters {
-                    let Some(name) = parameter.name.as_deref() else {
-                        return Completion::Deferred;
-                    };
-                    parameters.push(format!(
-                        "{}{}: {}",
-                        if parameter.rest {
-                            format!("...{name}")
-                        } else {
-                            name.to_string()
-                        },
-                        if parameter.optional { "?" } else { "" },
-                        completed!(self.display_inner(parameter.ty, depth + 1))
-                    ));
-                }
-                format!(
-                    "({}) => {}",
-                    parameters.join(", "),
-                    completed!(self.display_inner(signature.return_type, depth + 1))
-                )
-            }
             TypeKind::ShapeFunction(_) | TypeKind::Deferred(_) => return Completion::Deferred,
         })
     }
-    fn display_types(&self, types: &[TypeId], separator: &str, depth: usize) -> Completion<String> {
-        let mut rendered = Vec::with_capacity(types.len());
-        for ty in types {
-            rendered.push(completed!(self.display_inner(*ty, depth + 1)));
+    pub(crate) fn display_parameters(
+        &self,
+        signature: &Signature,
+        mut render: impl FnMut(TypeId) -> Completion<String>,
+    ) -> Completion<String> {
+        let mut parameters = Vec::with_capacity(signature.parameters.len());
+        for parameter in &signature.parameters {
+            let Some(name) = parameter.name.as_deref() else {
+                return Completion::Deferred;
+            };
+            parameters.push(format!(
+                "{}{}{}: {}",
+                if parameter.rest { "..." } else { "" },
+                name,
+                if parameter.optional { "?" } else { "" },
+                completed!(render(parameter.ty))
+            ));
         }
-        Completion::Complete(rendered.join(separator))
+        Completion::Complete(parameters.join(", "))
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1347,3 +1351,15 @@ pub enum Completion<T> {
 #[cfg(test)]
 #[path = "../../rewrite-tests/types_unit.rs"]
 mod tests;
+
+fn display_types(
+    types: &[TypeId],
+    separator: &str,
+    mut render: impl FnMut(TypeId) -> Completion<String>,
+) -> Completion<String> {
+    let mut rendered = Vec::with_capacity(types.len());
+    for ty in types {
+        rendered.push(completed!(render(*ty)));
+    }
+    Completion::Complete(rendered.join(separator))
+}

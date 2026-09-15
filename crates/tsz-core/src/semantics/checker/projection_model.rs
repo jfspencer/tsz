@@ -521,83 +521,18 @@ impl Checker<'_> {
                 Completion::Cycle => Completion::Cycle,
                 Completion::Limit => Completion::Limit,
             },
-            TypeKind::Array(element) => {
-                let element_name =
-                    completed!(
-                        self.display_type_for_diagnostic_inner(*element, active, depth + 1,)
-                    );
-                let parentheses = matches!(
-                    self.store.kind(*element),
-                    TypeKind::Union(_) | TypeKind::Intersection(_) | TypeKind::Function(_)
-                );
-                Completion::Complete(if parentheses {
-                    format!("({element_name})[]")
-                } else {
-                    format!("{element_name}[]")
-                })
-            }
-            TypeKind::Tuple(elements) => {
-                let mut rendered = Vec::with_capacity(elements.len());
-                for element in elements {
-                    rendered.push(completed!(self.display_type_for_diagnostic_inner(
-                        *element,
-                        active,
-                        depth + 1,
-                    )));
-                }
-                Completion::Complete(format!("[{}]", rendered.join(", ")))
-            }
-            TypeKind::Union(members) | TypeKind::Intersection(members) => {
-                let is_union = matches!(self.store.kind(ty), TypeKind::Union(_));
-                let separator = if is_union { " | " } else { " & " };
+            TypeKind::Union(members) if members.iter().all(|member| {
+                matches!(self.store.kind(*member), TypeKind::Deferred(DeferredType::Reference { declaration, .. }) if self.declaration_preserves_alias_name(*declaration))
+            }) => {
                 let mut rendered = Vec::with_capacity(members.len());
                 for member in members {
-                    rendered.push(completed!(self.display_type_for_diagnostic_inner(
-                        *member,
-                        active,
-                        depth + 1,
-                    )));
+                    rendered.push(completed!(self.display_type_for_diagnostic_inner(*member, active, depth + 1)));
                 }
-                if is_union
-                    && members.iter().all(|member| {
-                        matches!(
-                            self.store.kind(*member),
-                            TypeKind::Deferred(DeferredType::Reference { declaration, .. })
-                                if self.declaration_preserves_alias_name(*declaration)
-                        )
-                    })
-                {
-                    rendered.sort();
-                    rendered.dedup();
-                }
-                Completion::Complete(rendered.join(separator))
+                rendered.sort();
+                rendered.dedup();
+                Completion::Complete(rendered.join(" | "))
             }
-            TypeKind::Object(shape) => {
-                if !shape.call_signatures.is_empty()
-                    || !shape.construct_signatures.is_empty()
-                    || !shape.index_signatures.is_empty()
-                {
-                    Completion::Deferred
-                } else if shape.properties.is_empty() {
-                    Completion::Complete("{}".to_owned())
-                } else {
-                    let mut rendered = Vec::with_capacity(shape.properties.len());
-                    for property in &shape.properties {
-                        rendered.push(format!(
-                            "{}{}: {}",
-                            property.name,
-                            if property.optional { "?" } else { "" },
-                            completed!(self.display_type_for_diagnostic_inner(
-                                property.ty,
-                                active,
-                                depth + 1,
-                            )),
-                        ));
-                    }
-                    Completion::Complete(format!("{{ {}; }}", rendered.join("; ")))
-                }
-            }
-            _ => self.store.display(ty),
+            _ => self.store.display_with_children(ty, |child| self.display_type_for_diagnostic_inner(child, active, depth + 1)),
         };
         active.remove(&ty);
         result

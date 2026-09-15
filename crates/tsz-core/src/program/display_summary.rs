@@ -7,6 +7,14 @@ pub(crate) struct RenderedType {
     pub text: String,
     pub part_kind: &'static str,
 }
+impl RenderedType {
+    pub(crate) const fn text(text: String) -> Self {
+        Self {
+            text,
+            part_kind: "text",
+        }
+    }
+}
 #[derive(Debug, Clone)]
 pub(crate) struct RenderedParameter {
     pub text: String,
@@ -35,12 +43,6 @@ pub(crate) enum DefaultExportDeclaration {
     },
 }
 impl DeclarationDisplaySummaries {
-    pub(crate) const fn new() -> Self {
-        Self {
-            declarations: BTreeMap::new(),
-            default_exports: BTreeMap::new(),
-        }
-    }
     #[cfg(test)]
     pub(crate) fn is_empty(&self) -> bool {
         self.declarations.is_empty() && self.default_exports.is_empty()

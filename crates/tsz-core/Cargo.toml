@@ -217,5 +217,9 @@ path = "rewrite-tests/config_option_classification.rs"
 name = "rewrite_emit_declaration_only"
 path = "rewrite-tests/emit_declaration_only.rs"
 
+[[test]]
+name = "rewrite_inferred_object_declarations"
+path = "rewrite-tests/inferred_object_declarations.rs"
+
 [lints]
 workspace = true
